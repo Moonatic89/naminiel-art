@@ -1,0 +1,58 @@
+{
+  "events": [
+    {
+      "id": 1,
+      "name": "Fiera del Fumetto Milano",
+      "location": "Milano, Italia",
+      "dates": {
+        "start": "2024-03-15",
+        "end": "2024-03-17"
+      }
+    },
+    {
+      "id": 2,
+      "name": "Fiera del Fumetto Roma",
+      "location": "Roma, Italia",
+            "dates": {
+        "start": "2024-05-20",
+        "end": "2024-05-22"
+      }
+    }
+  ],
+  "products": [
+    {
+      "id": 1,
+      "subject": "Bakugo",
+      "type":"Disegno",
+      "size": "A4",
+      "price": 9
+    },
+    {
+      "id": 2,
+      "subject": "Bakugo",
+      "type":"Disegno",
+      "size": "A5",
+      "price": 5
+    },
+    {
+      "id": 3,
+      "subject": "Bakugo",
+      "type":"Segnalibro",
+      "size": "Normale",
+      "price": 3
+    }
+  ],
+  "sales": [
+    {
+      "event_name": "Fiera del Fumetto Milano",
+      "date": "2024-03-15",
+      "product": {
+        "dimension": "a",
+        "subject": "a",
+        "type": "a",
+        "price": "a"
+      },
+      "price": 45.00
+    }
+  ]
+}
