@@ -25,7 +25,7 @@
         transform: toggles.transition ? 'translateY(230%)' : 'translateY(0)',
         transitionDuration: waveDuration,
       }">
-      <img class="w-full" :style="{ maxHeight: maxImageWidth + 'px' }" src="@/assets/Wave/redWave.png" alt="Top Wave" />
+      <img class="w-full" :style="{ maxHeight: maxImageWidth + 'px' }" src="@/assets/wave/redWave.png" alt="Top Wave" />
     </div>
 
     <div
@@ -35,7 +35,7 @@
         transform: toggles.transition ? 'translateY(-230%)' : 'translateY(0)',
         transitionDuration: waveDuration,
       }">
-      <img class="w-full" :style="{ maxHeight: maxImageWidth + 'px' }" src="@/assets/Wave/cyanWave.png" alt="Bottom Wave" />
+      <img class="w-full" :style="{ maxHeight: maxImageWidth + 'px' }" src="@/assets/wave/cyanWave.png" alt="Bottom Wave" />
     </div>
   </div>
 </template>
