@@ -10,12 +10,12 @@
 
     <!-- Left Transition Effect (desktop) -->
     <div v-if="!isMobile && toggles.left" class="h-full absolute top-0 left-[-230%] z-10 scale-x-[230%] origin-left transition-transform" :class="!toggles.transition ? 'translate-x-0' : 'translate-x-[230%]'" :style="{ transitionDuration: waveDuration }">
-      <img class="h-full" :style="{ maxWidth: maxImageWidth + 'px' }" src="@/assets/Wave/redWave.png" alt="Left Wave" />
+      <img class="h-full" :style="{ maxWidth: maxImageWidth + 'px' }" src="@/assets/wave/redWave.png" alt="Left Wave" />
     </div>
 
     <!-- Right Transition Effect (desktop) -->
     <div v-if="!isMobile && toggles.right" class="h-full absolute top-0 right-[-230%] z-10 scale-x-[230%] origin-right transition-transform" :class="!toggles.transition ? 'translate-x-0' : 'translate-x-[-230%]'" :style="{ transitionDuration: waveDuration }">
-      <img class="h-full" :style="{ maxWidth: maxImageWidth + 'px' }" src="@/assets/Wave/cyanWave.png" alt="Right Wave" />
+      <img class="h-full" :style="{ maxWidth: maxImageWidth + 'px' }" src="@/assets/wave/cyanWave.png" alt="Right Wave" />
     </div>
 
     <div
