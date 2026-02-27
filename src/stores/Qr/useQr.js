@@ -2,8 +2,6 @@
 import { defineStore } from "pinia";
 import { ref } from "vue";
 import { supabase } from "../../supabase";
-import { ref as dbRef, push, set, get, child, remove } from "firebase/database";
-import db from "../../services/firebase";
 
 export const useQr = defineStore("qr-code", () => {
     const resources = ref([]); // tutte le risorse complete
@@ -27,29 +25,26 @@ export const useQr = defineStore("qr-code", () => {
         return newCode;
     };
 
-    // Recupera risorse dal db
+    // Recupera risorse dal db Supabase
     const fetchCodes = async () => {
         try {
-            const snapshot = await get(dbRef(db, "qr-code"));
-            if (snapshot.exists()) {
-                const arr = Object.entries(snapshot.val()).map(([id, value]) => ({
-                    id,
-                    ...value,
-                })).reverse();
-                resources.value = arr;
-                codes.value = arr.map(r => r.code);
-            } else {
-                resources.value = [];
-                codes.value = [];
-            }
+            const { data, error } = await supabase
+                .from('qr_codes')
+                .select('*')
+                .order('created_at', { ascending: false });
+
+            if (error) throw error;
+
+            resources.value = data || [];
+            codes.value = (data || []).map(r => r.code);
         } catch (err) {
-            console.error("[fetchCodes]", err);
+            console.error("[fetchCodes]", err.message);
             throw err;
         }
     };
 
 
-    // Aggiungi nuova risorsa
+    // Aggiungi nuova risorsa su Supabase
     const addCode = async ({ title, text, imageFile }) => {
         try {
             const ext = imageFile.name.split(".").pop();
@@ -57,7 +52,7 @@ export const useQr = defineStore("qr-code", () => {
                 .toString(36)
                 .substring(2)}.${ext}`;
 
-            // Upload immagine
+            // 1. Upload immagine
             const { error: uploadError } = await supabase.storage
                 .from("qr-code")
                 .upload(randomName, imageFile);
@@ -67,49 +62,64 @@ export const useQr = defineStore("qr-code", () => {
                 .from("qr-code")
                 .getPublicUrl(randomName);
 
-            // genera un code univoco
+            // 2. Genera un code univoco
             const uniqueCode = createUniqueCode();
 
             const newResource = {
                 title,
                 text,
                 image: publicUrl.publicUrl,
-                fileName: randomName,
+                file_name: randomName,
                 code: uniqueCode,
-                created_at: Date.now(),
+                created_at: new Date().toISOString(),
             };
 
-            const codesRef = dbRef(db, "qr-code");
-            const newRef = push(codesRef);
-            await set(newRef, newResource);
+            // 3. Salva su Database Supabase
+            const { data, error } = await supabase
+                .from('qr_codes')
+                .insert([newResource])
+                .select();
 
-            resources.value.unshift({ id: newRef.key, ...newResource });
-            codes.value.unshift(uniqueCode);
+            if (error) throw error;
+
+            if (data) {
+                resources.value.unshift(data[0]);
+                codes.value.unshift(uniqueCode);
+            }
         } catch (err) {
-            console.error("[addCode]", err);
+            console.error("[addCode]", err.message);
             throw err;
         }
     };
 
-    // Rimuovi risorsa
+    // Rimuovi risorsa da Supabase
     const removeCode = async (id, fileName = null, code = null) => {
         try {
-            const codeRef = dbRef(db, `qr-code/${id}`);
-            await remove(codeRef);
+            // 1. Elimina da Database
+            const { error } = await supabase
+                .from('qr_codes')
+                .delete()
+                .eq('id', id);
 
+            if (error) throw error;
+
+            // 2. Aggiorna stato locale
             resources.value = resources.value.filter((r) => r.id !== id);
             if (code) {
                 codes.value = codes.value.filter((c) => c !== code);
             }
 
+            // 3. Rimuovi da Storage
             if (fileName) {
                 const { error: supaError } = await supabase.storage
                     .from("qr-code")
                     .remove([fileName]);
-                if (supaError) throw supaError;
+                if (supaError) {
+                    console.warn("[removeCode] Errore rimozione storage:", supaError.message);
+                }
             }
         } catch (err) {
-            console.error("[removeCode]", err);
+            console.error("[removeCode]", err.message);
             throw err;
         }
     };

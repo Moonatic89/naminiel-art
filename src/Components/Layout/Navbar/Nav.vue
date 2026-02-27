@@ -18,7 +18,7 @@
 
 <script setup>
 import { useAuth } from "@/Composables/User/useAuth";
-import { logout } from "@/services/firebase"; // già definito nel tuo modulo
+import { logout } from "@/services/auth";
 import { useUserStore } from "@/stores/User/User";
 import { ref } from "vue";
 import { useRouter } from "vue-router";
@@ -36,14 +36,16 @@ async function onLogout() {
   try {
     await logout();
     userStore.clearUser();
-    router.push({ name: "PublicPosts" }); // o la tua rotta pubblica preferita
+    router.push("/");
+  } catch (err) {
+    console.error("Errore durante il logout:", err);
   } finally {
     loggingOut.value = false;
   }
 }
 
 const links = ref([
-  { name: "", label: "Home" },
+  { name: "/", label: "Home" },
   { name: "blog", label: "Blog" },
   { name: "about", label: "About" },
   { name: "contact", label: "Contact" },

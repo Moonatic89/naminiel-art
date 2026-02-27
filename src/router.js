@@ -1,6 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useUserStore } from "@/stores/User/User";
-import { auth, refreshClaims, onAuthChanged } from "@/services/firebase";
+import { onAuthChanged, getSession } from "@/services/auth";
 
 const routes = [
     // #region Home
@@ -23,7 +23,7 @@ const routes = [
     },
     {
         path: '/post/edit/:id',
-        name: 'New Post',
+        name: 'Edit Post',
         component: () => import('./Views/Blog/EditPost.vue'),
         props: route => ({ id: route.params.id })
     },
@@ -43,7 +43,7 @@ const routes = [
     },
     {
         path: '/art-:ns/edit/:id',
-        name: 'New Art',
+        name: 'Edit Art',
         component: () => import('./Views/Art/EditArt.vue'),
         props: route => ({ namespace: route.params.ns, id: route.params.id })
     },
@@ -74,7 +74,7 @@ const routes = [
         path: '/pamina',
         name: 'Login',
         component: () => import('./Views/Site/Login.vue'),
-        meta: { guestOnly: true }, // se già loggato, non mostrare la login
+        meta: { guestOnly: true },
     },
     {
         path: '/policy',
@@ -88,51 +88,36 @@ const router = createRouter({
     routes,
 });
 
-// Attendi la prima emissione di Auth (evita condizioni di gara)
+// Attendi la prima emissione di Auth
 let authReady = false;
+let initialUser = null;
+
 function waitForAuth() {
-    if (authReady) return Promise.resolve();
+    if (authReady) return Promise.resolve(initialUser);
     return new Promise((resolve) => {
-        const off = onAuthChanged(() => {
+        const unsubscribe = onAuthChanged((user) => {
             authReady = true;
-            off();
-            resolve();
+            initialUser = user;
+            unsubscribe();
+            resolve(user);
         });
     });
 }
 
 router.beforeEach(async (to, from, next) => {
-    await waitForAuth();
+    const user = await waitForAuth();
+    const userStore = useUserStore();
 
-    const user = auth.currentUser;
-
-    // se la route è solo per ospiti e l'utente è loggato → manda all'area admin
+    // se la route è solo per ospiti e l'utente è loggato → manda alla home o area admin
     if (to.meta?.guestOnly && user) {
-        return next({ name: "AdminPosts" });
+        return next({ name: "Home" });
     }
 
-    // se richiede login e non c'è utente → NON mandare alla login, vai al fallback/public
-    if (to.meta?.requiresAuth && !user) {
-        const fb = to.meta?.fallback || { name: "PublicPosts" };
-        return next(fb);
-    }
-
-    // se richiede admin, controlla la claim
-    if (to.meta?.requiresAdmin) {
-        const store = useUserStore();
-        let claims = store.user?.claims;
-        if (user && (!claims || !claims.role)) {
-            claims = await refreshClaims().catch(() => ({}));
-            store.setUser({
-                uid: user.uid,
-                email: user.email,
-                displayName: user.displayName || null,
-                claims: claims || {},
-            });
-        }
-        if (claims?.role !== "admin") {
-            const fb = to.meta?.fallback || { name: "PublicPosts" };
-            return next(fb);
+    // Se la rotta richiede admin (esempio basato su email per ora, come nel Login.vue)
+    const ADMIN_EMAIL = "moonatic1989@gmail.com";
+    if (to.path.includes('/new') || to.path.includes('/edit') || to.name === 'NewCard') {
+        if (!user || user.email !== ADMIN_EMAIL) {
+            return next({ name: "Home" });
         }
     }
 

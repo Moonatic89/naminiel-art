@@ -1,7 +1,6 @@
 <script setup>
-import { auth, loginWithEmail } from "@/services/firebase"; // funzione creata nello step 2B
+import { loginWithEmail, logout } from "@/services/auth";
 import { useUserStore } from "@/stores/User/User";
-import { signOut } from "firebase/auth";
 import { ref } from "vue";
 import { useRouter } from "vue-router";
 
@@ -13,37 +12,28 @@ const password = ref("");
 const error = ref("");
 const loading = ref(false);
 
-// (opzionale) whitelisting duro dell'email admin finché non mettiamo le claims
 const ADMIN_EMAIL = "moonatic1989@gmail.com";
 
 async function login() {
   error.value = "";
   loading.value = true;
   try {
-    const { user, claims } = await loginWithEmail(email.value.trim(), password.value);
+    const { user } = await loginWithEmail(email.value.trim(), password.value);
+    
     if ((user.email ?? "") !== ADMIN_EMAIL) {
-      await signOut(auth);
+      await logout();
       throw new Error("Questo account non è autorizzato.");
     }
-    // salva info minime nello store (id/email); niente password
+
     userStore.setUser({
-      uid: user.uid,
+      uid: user.id,
       email: user.email,
-      displayName: user.displayName || null,
-      claims: claims || {},
     });
-    router.push("/"); // rotta protetta (step 9)
+    
+    router.push("/");
   } catch (e) {
-    const code = e?.code ?? "";
-    if (code === "auth/invalid-credential" || code === "auth/wrong-password") {
-      error.value = "Credenziali non valide.";
-    } else if (code === "auth/too-many-requests") {
-      error.value = "Troppi tentativi. Riprova più tardi.";
-    } else if (e?.message) {
-      error.value = e.message;
-    } else {
-      error.value = "Errore di accesso.";
-    }
+    console.error(e);
+    error.value = e.message || "Errore di accesso.";
   } finally {
     loading.value = false;
   }

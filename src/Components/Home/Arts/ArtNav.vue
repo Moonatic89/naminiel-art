@@ -1,74 +1,71 @@
 <template>
-  <!-- lascia passare gli eventi nel vuoto -->
-  <div class="absolute inset-0 z-30 pointer-events-none flex flex-col md:flex-row justify-between items-center">
-    <!-- riattiva gli eventi SOLO sulle card -->
-    <div v-if="selectedOg" class="xl:w-1/12 lg:w-[] w-1/4 sm:w-1/6 m-20 pointer-events-auto cursor-pointer">
+  <!-- Contenitore assoluto sopra lo sfondo -->
+  <div class="absolute inset-0 z-30 pointer-events-none flex justify-between items-start top-40 px-8">
+    <!-- Original -->
+    <div
+      class="w-1/4 sm:w-1/6 xl:w-1/3 pointer-events-auto cursor-pointer
+             animate-slideInLeft"
+    >
       <router-link to="/art-og">
-        <img :src="selectedOg" alt="OG frame" />
-        <h1 class="text-2xl text-center md:text-3xl font-extrabold tracking-tight leading-none text-transparent bg-clip-text bg-gradient-to-r from-neutral-200 via-neutral-300 to-neutral-400 drop-shadow-[0_2px_8px_rgba(255,255,255,0.15)]">Original</h1>
+        <img :src="staticOg" alt="OG frame" class="w-full h-auto" />
       </router-link>
     </div>
 
-    <div v-if="selectedFa" class="xl:w-1/12 lg:w-[] w-1/4 sm:w-1/6 m-20 pointer-events-auto cursor-pointer">
+    <!-- Fanart -->
+    <div
+      class="w-1/4 sm:w-1/6 xl:w-1/3 pointer-events-auto cursor-pointer
+             animate-slideInRight"
+    >
       <router-link to="/art-fa">
-        <img :src="selectedFa" alt="FA frame" />
-        <h1 class="text-2xl text-center md:text-3xl font-extrabold tracking-tight leading-none text-transparent bg-clip-text bg-gradient-to-r from-white via-neutral-300 to-neutral-500 drop-shadow-[0_6px_24px_rgba(255,255,255,0.25)]">Fanart</h1>
+        <img :src="staticFa" alt="FA frame" class="w-full h-auto" />
       </router-link>
     </div>
   </div>
 </template>
 
 <script setup>
-import { computed, onMounted, ref } from "vue";
-
-/* Props opzionali: liste personalizzate.
-   Se non fornite, si usano le immagini scansionate dalle cartelle. */
-const props = defineProps({
-  og: { type: Array, default: null },
-  fa: { type: Array, default: null },
-});
-
-/* Scansione automatica cartelle (Vite) */
-const scannedOg = Object.values(
-  import.meta.glob("/src/assets/frames/og/*.{png,jpg,jpeg,webp,avif,gif,svg}", {
-    eager: true,
-    import: "default",
-  })
-);
-
-const scannedFa = Object.values(
-  import.meta.glob("/src/assets/frames/fa/*.{png,jpg,jpeg,webp,avif,gif,svg}", {
-    eager: true,
-    import: "default",
-  })
-);
-
-/* Sorgenti effettive */
-const ogPool = computed(() => (props.og && props.og.length ? props.og : scannedOg));
-const faPool = computed(() => (props.fa && props.fa.length ? props.fa : scannedFa));
-
-/* Scelte correnti */
-const selectedOg = ref("");
-const selectedFa = ref("");
-
-function pickRandom(arr) {
-  if (!arr || arr.length === 0) return undefined;
-  const i = Math.floor(Math.random() * arr.length);
-  return arr[i];
-}
-
-function reshuffle() {
-  const og = pickRandom(ogPool.value);
-  const fa = pickRandom(faPool.value);
-  selectedOg.value = typeof og === "string" ? og : "";
-  selectedFa.value = typeof fa === "string" ? fa : "";
-}
-
-/* Random alla prima montata (quindi anche al refresh della pagina) */
-onMounted(() => {
-  reshuffle();
-});
-
-/* Opzionale: esponi il metodo per rimescolare dall'esterno */
-defineExpose({ reshuffle });
+const staticFa =
+  "https://hqbmfndntgzbgprrbrhm.supabase.co/storage/v1/object/public/nav/nav_goku.webp";
+const staticOg =
+  "https://hqbmfndntgzbgprrbrhm.supabase.co/storage/v1/object/public/nav/nav_venerdi.webp";
 </script>
+
+<style scoped>
+@keyframes slideInLeft {
+  0% {
+    transform: translate(-150%, -20%) scale(0.95);
+    opacity: 0.25;
+  }
+  60% {
+    transform: translate(10%, 10%) scale(1.02); /* curva verso il basso */
+    opacity: 0.7;
+  }
+  100% {
+    transform: translate(0, 0) scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes slideInRight {
+  0% {
+    transform: translate(150%, -20%) scale(0.95);
+    opacity: 0.25;
+  }
+  60% {
+    transform: translate(-10%, 10%) scale(1.02); /* curva verso il basso */
+    opacity: 0.7;
+  }
+  100% {
+    transform: translate(0, 0) scale(1);
+    opacity: 1;
+  }
+}
+
+.animate-slideInLeft {
+  animation: slideInLeft 2s cubic-bezier(0.77, 0, 0.175, 1) forwards;
+}
+
+.animate-slideInRight {
+  animation: slideInRight 2s cubic-bezier(0.77, 0, 0.175, 1) forwards;
+}
+</style>

@@ -2,8 +2,6 @@
 import { defineStore } from "pinia";
 import { ref, computed } from "vue";
 import { supabase } from "../../supabase";
-import { ref as dbRef, push, set, get, child, remove } from "firebase/database";
-import db from "../../services/firebase";
 
 export const useArt = (namespace) =>
     defineStore(`art-${namespace}`, () => {
@@ -12,15 +10,16 @@ export const useArt = (namespace) =>
 
         const fetchArts = async () => {
             try {
-                const snapshot = await get(child(dbRef(db), `art-${namespace}`));
-                arts.value = snapshot.exists()
-                    ? Object.entries(snapshot.val()).map(([id, value]) => ({
-                        id,
-                        ...value,
-                    })).reverse()
-                    : [];
+                const { data, error } = await supabase
+                    .from('arts')
+                    .select('*')
+                    .eq('namespace', namespace)
+                    .order('created_at', { ascending: false });
+
+                if (error) throw error;
+                arts.value = data || [];
             } catch (err) {
-                console.error(`[fetchArts ${namespace}]`, err);
+                console.error(`[fetchArts ${namespace}]`, err.message);
                 throw err;
             }
         };
@@ -45,6 +44,7 @@ export const useArt = (namespace) =>
                     .toString(36)
                     .substring(2)}.${ext}`;
 
+                // 1. Storage
                 const { error: uploadError } = await supabase.storage
                     .from(`art-${namespace}`)
                     .upload(randomName, imageFile);
@@ -54,54 +54,68 @@ export const useArt = (namespace) =>
                     .from(`art-${namespace}`)
                     .getPublicUrl(randomName);
 
-                const newArt = {
+                // 2. Database
+                const newArtData = {
                     title,
                     category,
                     description,
                     img: publicUrl.publicUrl,
-                    fileName: randomName, // serve se vuoi cancellare anche da Supabase
-                    created_at: Date.now(),
+                    file_name: randomName,
+                    namespace: namespace,
+                    created_at: new Date().toISOString(),
                 };
 
-                const artsRef = dbRef(db, `art-${namespace}`);
-                const newArtRef = push(artsRef);
-                await set(newArtRef, newArt);
+                const { data, error } = await supabase
+                    .from('arts')
+                    .insert([newArtData])
+                    .select();
 
-                arts.value.unshift({ id: newArtRef.key, ...newArt });
+                if (error) throw error;
+
+                if (data) arts.value.unshift(data[0]);
             } catch (err) {
-                console.error(`[addArt ${namespace}]`, err);
+                console.error(`[addArt ${namespace}]`, err.message);
                 throw err;
             }
         };
 
         const removeArt = async (id, fileName = null) => {
             try {
-                // Rimuovi dal Realtime Database
-                const artRef = dbRef(db, `art-${namespace}/${id}`);
-                await remove(artRef);
+                // 1. Database
+                const { error } = await supabase
+                    .from('arts')
+                    .delete()
+                    .eq('id', id);
 
-                // Aggiorna lo stato locale
+                if (error) throw error;
+
+                // 2. Locale
                 arts.value = arts.value.filter((a) => a.id !== id);
 
-                // (Opzionale) rimuovi anche da Supabase se hai salvato il fileName
+                // 3. Storage
                 if (fileName) {
                     const { error: supaError } = await supabase.storage
                         .from(`art-${namespace}`)
                         .remove([fileName]);
-                    if (supaError) throw supaError;
+                    if (supaError) {
+                        console.warn(`[removeArt ${namespace}] Errore storage:`, supaError.message);
+                    }
                 }
             } catch (err) {
-                console.error(`[removeArt ${namespace}]`, err);
+                console.error(`[removeArt ${namespace}]`, err.message);
                 throw err;
             }
         };
 
         const updateArt = async (id, { title, category, description, imageFile }) => {
             try {
-                let imgUrl = null;
-                let fileName = null;
+                let updatedFields = {
+                    title,
+                    category,
+                    description,
+                };
 
-                // se viene passato un nuovo file, caricalo su Supabase
+                // se viene passato un nuovo file
                 if (imageFile) {
                     const ext = imageFile.name.split(".").pop();
                     const randomName = `${Date.now()}-${Math.random()
@@ -118,33 +132,23 @@ export const useArt = (namespace) =>
                         .from(`art-${namespace}`)
                         .getPublicUrl(randomName);
 
-                    imgUrl = publicUrl.publicUrl;
-                    fileName = randomName;
+                    updatedFields.img = publicUrl.publicUrl;
+                    updatedFields.file_name = randomName;
                 }
 
-                // recupero i dati attuali
-                const current = arts.value.find((a) => a.id === id);
-                if (!current) throw new Error("Art non trovata");
+                const { data, error } = await supabase
+                    .from('arts')
+                    .update(updatedFields)
+                    .eq('id', id)
+                    .select();
 
-                // oggetto aggiornato
-                const updatedArt = {
-                    ...current,
-                    title: title ?? current.title,
-                    category: category ?? current.category,
-                    description: description ?? current.description,
-                    img: imgUrl || current.img,
-                    fileName: fileName || current.fileName,
-                    updated_at: Date.now(),
-                };
+                if (error) throw error;
 
-                // aggiorno in Firebase
-                const artRef = dbRef(db, `art-${namespace}/${id}`);
-                await set(artRef, updatedArt);
-
-                // aggiorno lo stato locale
-                arts.value = arts.value.map((a) => (a.id === id ? updatedArt : a));
+                if (data) {
+                    arts.value = arts.value.map((a) => (a.id === id ? data[0] : a));
+                }
             } catch (err) {
-                console.error(`[updateArt ${namespace}]`, err);
+                console.error(`[updateArt ${namespace}]`, err.message);
                 throw err;
             }
         };
