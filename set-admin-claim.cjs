@@ -1,4 +1,5 @@
 // set-admin-claim.js
+require('dotenv').config(); // carica le variabili dal file .env
 const admin = require('firebase-admin');
 const serviceAccount = require('./src/fb_key.json'); // path al file scaricato
 
@@ -8,9 +9,9 @@ admin.initializeApp({
 
 // Lista di email che devono avere la claim admin
 const ADMIN_EMAILS = [
-    "moonatic1989@gmail.com",
-    "naminielart@gmail.com"
-].map(e => e.toLowerCase());
+    process.env.VITE_ADMIN_EMAIL_01,
+    process.env.VITE_ADMIN_EMAIL_02,
+].filter(Boolean).map(e => e.toLowerCase());
 
 async function setAdmins(emails) {
     for (const email of emails) {

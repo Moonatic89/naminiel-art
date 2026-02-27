@@ -27,9 +27,9 @@
       class="relative h-screen w-full overflow-hidden"
       :class="currentState === 'left' ? 'bg-[#5bc6d8]' : 'bg-[#ff547e]'"
     >
-      <Wave v-if="startTrigger" :state="currentState" @update:state="currentState = $event" />
+      <Wave :state="currentState" @update:state="currentState = $event" />
       <AnimatedLogo />
-      <ArtNav v-if="startTrigger" />
+      <ArtNav />
     </div>
   </div>
 </template>
@@ -46,7 +46,6 @@ const introDone = ref(false);
 
 // stato home
 const currentState = ref("right");
-const startTrigger = ref(true);
 
 const INTRO_KEY = "naminiel_intro_shown";
 

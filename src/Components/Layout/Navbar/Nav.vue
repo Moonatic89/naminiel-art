@@ -45,10 +45,9 @@ async function onLogout() {
 }
 
 const links = ref([
-  { name: "/", label: "Home" },
+  { name: "", label: "Home" },
   { name: "blog", label: "Blog" },
   { name: "about", label: "About" },
-  { name: "contact", label: "Contact" },
 ]);
 
 const icons = (label) => {

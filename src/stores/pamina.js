@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia';
-import { ref, onMounted } from 'vue';
+import { ref } from 'vue';
 import { API_TOKEN } from "../config";
 import axios from "axios";
 import { useLocalStorage } from '@vueuse/core';
@@ -123,7 +123,7 @@ export const usePaminaStore = defineStore('pamina', () => {
                 }
 
                 duplicateFound.value = false;
-                events.value[index] = JSON.parse(JSON.stringify(updatedEvent));
+                events.value[index] = JSON.parse(JSON.stringify(instance));
                 break;
             }
 
@@ -146,7 +146,7 @@ export const usePaminaStore = defineStore('pamina', () => {
                 }
 
                 duplicateFound.value = false;
-                products.value[index] = JSON.parse(JSON.stringify(updatedProduct));
+                products.value[index] = JSON.parse(JSON.stringify(instance));
                 break;
             }
 
@@ -211,11 +211,8 @@ export const usePaminaStore = defineStore('pamina', () => {
     };
 
     const loadData = async () => {
-        console.log("Inizio Loading")
         if (loaded.value) return;
-        console.log("Primo Check")
         try {
-            console.log("Dentro a Try")
             const res = await axios.post(
                 "https://iot.solariumsmart.it/cloudsolarium/public/customRoute/shop/get",
                 {
@@ -223,7 +220,6 @@ export const usePaminaStore = defineStore('pamina', () => {
                 }
             );
             if (res.data && typeof res.data === "object") {
-                console.log("Dati Caricati")
                 events.value = res.data.events || [];
                 products.value = res.data.products || [];
                 sales.value = res.data.sales || [];
@@ -236,7 +232,7 @@ export const usePaminaStore = defineStore('pamina', () => {
         }
     };
 
-    onMounted(loadData);
+    // loadData va chiamata esplicitamente dal componente che ne ha bisogno
 
     return {
         duplicateFound,

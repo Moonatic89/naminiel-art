@@ -99,14 +99,10 @@ const handleRight = () => {
 };
 
 // ---- Mobile handlers
-// ---- Mobile handlers
 const handleTop = () => {
-  console.log("[WaveVertical] handleTop triggered | currentState =", props.state);
   if (props.state === "bottom") {
-    console.log("[WaveVertical] Ignoro: già in stato 'bottom'");
     return;
   }
-  console.log("[WaveVertical] Avvio animazione dall’alto");
   toggles.value.top = true;
   setTimeout(() => {
     StartTransition("bottom");
@@ -114,12 +110,9 @@ const handleTop = () => {
 };
 
 const handleBottom = () => {
-  console.log("[WaveVertical] handleBottom triggered | currentState =", props.state);
   if (props.state === "top") {
-    console.log("[WaveVertical] Ignoro: già in stato 'top'");
     return;
   }
-  console.log("[WaveVertical] Avvio animazione dal basso");
   toggles.value.bottom = true;
   setTimeout(() => {
     StartTransition("top");
@@ -135,20 +128,21 @@ const changeState = (dir: string) => {
   toggles.value.transition = false;
 };
 
+const updateIsMobile = () => {
+  isMobile.value = window.innerWidth < 768;
+};
+
 onMounted(() => {
   const waveWidthMultiplier = 12.55;
   maxImageWidth.value = window.innerWidth * waveWidthMultiplier;
   isMobile.value = window.innerWidth < 768;
-  console.log("[WaveVertical] onMounted | isMobile =", isMobile.value);
 
   window.addEventListener("resize", updateMaxImageWidth);
-  window.addEventListener("resize", () => {
-    isMobile.value = window.innerWidth < 768;
-    console.log("[WaveVertical] resize | isMobile =", isMobile.value);
-  });
+  window.addEventListener("resize", updateIsMobile);
 });
 
 onBeforeUnmount(() => {
   window.removeEventListener("resize", updateMaxImageWidth);
+  window.removeEventListener("resize", updateIsMobile);
 });
 </script>

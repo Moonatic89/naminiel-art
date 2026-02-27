@@ -21,7 +21,7 @@
 </template>
 
 <script setup>
-import { computed, onBeforeUnmount, onMounted, ref } from "vue";
+import { computed, onBeforeUnmount, ref } from "vue";
 // #region Images
 
 // #region Props
@@ -41,21 +41,25 @@ const icons = [
 
 const currentFrame = ref(1);
 
-const frameModules = import.meta.glob("../../../assets/animations/hero/*.png", { eager: true });
-const frames = Object.values(frameModules).map((mod) => mod.default);
+// Lazy loading dei frame: caricati dinamicamente solo quando richiesti
+const frameModules = import.meta.glob("../../../assets/animations/hero/*.png");
+const frameKeys = Object.keys(frameModules).sort(); // ordine alfabetico = ordine numerico
+const frames = ref([]);
 
-const frame = computed(() => frames[currentFrame.value]);
-
-const isAnimating = ref(true);
+// Precarica tutti i frame in background, avvia l'animazione quando pronti
 let interval = null;
-const maxFrame = 114; //48
+const maxFrame = 114;
 
-onMounted(() => {
-  if (!isAnimating.value) return;
+(async () => {
+  const loaded = await Promise.all(frameKeys.map(k => frameModules[k]()));
+  frames.value = loaded.map(m => m.default);
+  // Avvia l'animazione solo quando i frame sono tutti disponibili
   interval = setInterval(() => {
     currentFrame.value = currentFrame.value < maxFrame ? currentFrame.value + 1 : 1;
-  }, 50); // Change frame every 100ms (adjust as needed)
-});
+  }, 50);
+})();
+
+const frame = computed(() => frames.value[currentFrame.value] ?? frames.value[0]);
 
 onBeforeUnmount(() => {
   clearInterval(interval);

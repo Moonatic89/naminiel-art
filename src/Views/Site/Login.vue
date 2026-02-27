@@ -12,7 +12,10 @@ const password = ref("");
 const error = ref("");
 const loading = ref(false);
 
-const ADMIN_EMAIL = "moonatic1989@gmail.com";
+const ADMIN_EMAILS = [
+  import.meta.env.VITE_ADMIN_EMAIL_01,
+  import.meta.env.VITE_ADMIN_EMAIL_02,
+].filter(Boolean).map(e => e.toLowerCase());
 
 async function login() {
   error.value = "";
@@ -20,7 +23,7 @@ async function login() {
   try {
     const { user } = await loginWithEmail(email.value.trim(), password.value);
     
-    if ((user.email ?? "") !== ADMIN_EMAIL) {
+    if (!ADMIN_EMAILS.includes((user.email ?? "").toLowerCase())) {
       await logout();
       throw new Error("Questo account non è autorizzato.");
     }

@@ -1,7 +1,11 @@
 <template>
   <div class="relative">
     <Nav />
-    <router-view />
+    <router-view v-slot="{ Component }">
+      <Transition name="page" mode="out-in">
+        <component :is="Component" :key="$route.path" />
+      </Transition>
+    </router-view>
 
     <!-- Icona in basso -->
     <div class="absolute z-[999] bottom-0 right-0 p-2">
@@ -26,9 +30,6 @@ const cookieBanner = ref(null);
 watchEffect(async () => {
   text.value = await langStore.get("Site/Home");
 });
-
-const currentState = ref("right");
-// #endregion
 </script>
 
 <style>
@@ -61,5 +62,19 @@ const currentState = ref("right");
 * {
   scrollbar-width: thin;
   scrollbar-color: rgba(244, 63, 94, 0.6) transparent;
+}
+
+/* Transizione tra pagine */
+.page-enter-active,
+.page-leave-active {
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+.page-enter-from {
+  opacity: 0;
+  transform: translateY(6px);
+}
+.page-leave-to {
+  opacity: 0;
+  transform: translateY(-6px);
 }
 </style>

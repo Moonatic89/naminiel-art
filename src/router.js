@@ -81,6 +81,13 @@ const routes = [
         name: 'Policy',
         component: () => import('./Views/Site/Policy.vue'),
     },
+    // #region 404
+    {
+        path: '/:pathMatch(.*)*',
+        name: 'NotFound',
+        component: () => import('./Views/Site/NotFound.vue'),
+    },
+    // #endregion
 ];
 
 const router = createRouter({
@@ -113,10 +120,13 @@ router.beforeEach(async (to, from, next) => {
         return next({ name: "Home" });
     }
 
-    // Se la rotta richiede admin (esempio basato su email per ora, come nel Login.vue)
-    const ADMIN_EMAIL = "moonatic1989@gmail.com";
+    // Se la rotta richiede admin
+    const ADMIN_EMAILS = [
+        import.meta.env.VITE_ADMIN_EMAIL_01,
+        import.meta.env.VITE_ADMIN_EMAIL_02,
+    ].filter(Boolean).map(e => e.toLowerCase());
     if (to.path.includes('/new') || to.path.includes('/edit') || to.name === 'NewCard') {
-        if (!user || user.email !== ADMIN_EMAIL) {
+        if (!user || !ADMIN_EMAILS.includes((user.email ?? '').toLowerCase())) {
             return next({ name: "Home" });
         }
     }
