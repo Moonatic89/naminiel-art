@@ -5,6 +5,9 @@
       <div class="px-3 py-1 rounded-full border text-sm whitespace-nowrap bg-red-300" v-if="isAuthed">
         <router-link to="/post/new"> Carica nuova immagine </router-link>
       </div>
+      <div class="px-3 py-1 rounded-full border text-sm whitespace-nowrap bg-gray-700 text-white" v-if="isAuthed">
+        <router-link to="/orphans"><i class="fa-solid fa-ghost mr-1"></i> Orfani</router-link>
+      </div>
       <button class="px-3 py-1 rounded-full border text-sm whitespace-nowrap" :class="blog.selectedCategory === null ? 'bg-gray-800 text-white' : 'bg-white text-gray-700'" @click="blog.setCategory(null)">Tutte</button>
 
       <button v-for="cat in blog.categories" :key="cat" class="px-3 py-1 rounded-full border text-sm whitespace-nowrap" :class="blog.selectedCategory === cat ? 'bg-gray-800 text-white' : 'bg-white text-gray-700'" @click="blog.setCategory(cat)">

@@ -81,6 +81,14 @@ const routes = [
         name: 'Policy',
         component: () => import('./Views/Site/Policy.vue'),
     },
+    // #region Admin
+    {
+        path: '/orphans',
+        name: 'Orphans',
+        component: () => import('./Views/Site/Orphans.vue'),
+        meta: { adminOnly: true },
+    },
+    // #endregion
     // #region 404
     {
         path: '/:pathMatch(.*)*',
@@ -125,8 +133,10 @@ router.beforeEach(async (to, from, next) => {
         import.meta.env.VITE_ADMIN_EMAIL_01,
         import.meta.env.VITE_ADMIN_EMAIL_02,
     ].filter(Boolean).map(e => e.toLowerCase());
-    if (to.path.includes('/new') || to.path.includes('/edit') || to.name === 'NewCard') {
-        if (!user || !ADMIN_EMAILS.includes((user.email ?? '').toLowerCase())) {
+    const isAdmin = user && ADMIN_EMAILS.includes((user.email ?? '').toLowerCase());
+
+    if (to.meta?.adminOnly || to.path.includes('/new') || to.path.includes('/edit') || to.name === 'NewCard') {
+        if (!isAdmin) {
             return next({ name: "Home" });
         }
     }
