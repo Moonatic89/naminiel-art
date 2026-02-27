@@ -162,6 +162,7 @@ export const useArt = (namespace) =>
             setCategory,
             fetchArts,
             addArt,
+            updateArt,
             removeArt,
         };
     });

@@ -75,6 +75,7 @@ import { useAuth } from "@/Composables/User/useAuth";
 import { useBlog } from "@/stores/Blog/Blog";
 import { computed, onMounted, ref } from "vue";
 import Modal from "../../Components/Utilities/Modal.vue";
+import { useRouter } from "vue-router";
 
 const { isAuthed } = useAuth();
 
@@ -150,14 +151,17 @@ async function submitEdit() {
   }
 }
 
+const router = useRouter();
+
 // #region Modal
 
 const showConfirm = ref(false);
 
 const removePost = async () => {
   try {
-    await blog.deletePost(props.id); // funzione che creiamo nello store
+    await blog.deletePost(props.id);
     showConfirm.value = false;
+    router.push('/blog');
   } catch (err) {
     console.error("Errore durante la rimozione:", err);
   }

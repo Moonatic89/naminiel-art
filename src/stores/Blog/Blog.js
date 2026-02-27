@@ -35,7 +35,6 @@ export const useBlog = defineStore("blog", () => {
 
     const addPost = async ({ title, category, body, imageFile }) => {
         try {
-            console.log("[addPost] Inizio procedura Supabase...");
 
             const ext = imageFile.name.split('.').pop();
             const randomName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${ext}`;
@@ -88,6 +87,10 @@ export const useBlog = defineStore("blog", () => {
             };
 
             if (imageFile) {
+                // Recupera il vecchio file per rimuoverlo dopo l'upload
+                const oldPost = posts.value.find(p => p.id === id);
+                const oldFileName = oldPost?.img?.split("/").pop() ?? null;
+
                 const ext = imageFile.name.split(".").pop();
                 const randomName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${ext}`;
                 
@@ -102,6 +105,13 @@ export const useBlog = defineStore("blog", () => {
                     .getPublicUrl(randomName);
 
                 updatedData.img = publicUrl.publicUrl;
+
+                // Rimuovi il vecchio file dallo storage (non bloccante)
+                if (oldFileName) {
+                    supabase.storage.from("posts").remove([oldFileName]).catch(err =>
+                        console.warn("[updatePost] Vecchio file non rimosso:", err.message)
+                    );
+                }
             }
 
             const { data, error } = await supabase

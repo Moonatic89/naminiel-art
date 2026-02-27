@@ -32,14 +32,23 @@
         </div>
       </div>
     </transition>
+
+    <!-- Modal conferma rimozione -->
+    <Modal
+      :show="showConfirmModal"
+      title="Conferma rimozione"
+      message="Vuoi davvero eliminare questa immagine?"
+      @cancel="showConfirmModal = false"
+      @confirm="doRemove"
+    />
   </div>
 </template>
 
 <script setup>
 import { useAuth } from "@/Composables/User/useAuth";
-import { useUserStore } from "@/stores/User/User";
 import { ref } from "vue";
 import { useArt } from "../../stores/Art/useArt";
+import Modal from "../Utilities/Modal.vue";
 
 const { isAuthed } = useAuth();
 
@@ -48,21 +57,26 @@ const openModal = () => (showModal.value = true);
 const closeModal = () => (showModal.value = false);
 
 const props = defineProps({
-  art: Object, // contiene { id, title, category, description, img, fileName }
+  art: Object,
   ns: String,
 });
 
-const artStore = useArt(props.ns); // <-- passa il namespace corretto
-const userStore = useUserStore();
+const useArtStore = useArt(props.ns);
+const artStore = useArtStore();
+
+const showConfirmModal = ref(false);
 
 async function confirmRemove() {
-  if (confirm("Sei sicuro di voler rimuovere questa immagine?")) {
-    try {
-      await artStore.removeArt(props.art.id, props.art.fileName);
-      closeModal();
-    } catch (err) {
-      alert("Errore nella rimozione: " + err.message);
-    }
+  showConfirmModal.value = true;
+}
+
+async function doRemove() {
+  try {
+    await artStore.removeArt(props.art.id, props.art.fileName);
+    showConfirmModal.value = false;
+    closeModal();
+  } catch (err) {
+    alert("Errore nella rimozione: " + err.message);
   }
 }
 // onMounted(() => {

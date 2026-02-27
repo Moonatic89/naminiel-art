@@ -3,7 +3,7 @@
     <!-- FILTRO -->
     <div class="flex gap-2 overflow-x-auto pb-2 mb-4 no-scrollbar">
       <div class="px-3 py-1 rounded-full border text-sm whitespace-nowrap bg-red-300" v-if="isAuthed">
-        <router-link to="post/new"> Carica nuova immagine </router-link>
+        <router-link to="/post/new"> Carica nuova immagine </router-link>
       </div>
       <button class="px-3 py-1 rounded-full border text-sm whitespace-nowrap" :class="blog.selectedCategory === null ? 'bg-gray-800 text-white' : 'bg-white text-gray-700'" @click="blog.setCategory(null)">Tutte</button>
 

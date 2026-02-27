@@ -49,7 +49,7 @@ const { isAuthed } = useAuth();
       <div class="flex">
         <h2 class="text-xl font-bold mb-2 w-full flex gap-2">
           {{ post.title }} -
-          <span class="animate-pulse" @click="blog.setCategory(post.category)"> {{ post.category }} - </span>
+          <span class="cursor-pointer hover:underline" @click="blog.setCategory(post.category)"> {{ post.category }} - </span>
           <span>{{ formatDate(post.created_at) }}</span>
           <div class="ml-auto cursor-pointer" v-if="isAuthed">
             <router-link :to="`/post/edit/${post.id}`"><i class="fa-solid fa-pen-to-square"></i></router-link>

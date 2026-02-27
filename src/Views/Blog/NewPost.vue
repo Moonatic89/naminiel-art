@@ -140,9 +140,9 @@ const blog = useBlog();
 
 // Stato form
 const form = ref({
-  title: "Nuovo Post",
-  category: "TEST",
-  body: "<p class='text-rose-500 font-bold'>Testo di esempio formattato</p>",
+  title: "",
+  category: "",
+  body: "",
   image: null,
 });
 

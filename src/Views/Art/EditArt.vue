@@ -66,6 +66,7 @@
 <script setup>
 import { computed, onMounted, ref } from "vue";
 import { useArt } from "../../stores/Art/useArt";
+import { useRouter } from "vue-router";
 
 const props = defineProps({
   id: { type: String, required: true },
@@ -137,6 +138,8 @@ async function submitEdit() {
   }
 }
 
+const router = useRouter();
+
 // #region Modal
 const showConfirm = ref(false);
 
@@ -144,6 +147,7 @@ const removeArt = async () => {
   try {
     await artStore.removeArt(props.id, art.value.fileName);
     showConfirm.value = false;
+    router.push(`/art-${props.namespace}`);
   } catch (err) {
     console.error("Errore durante la rimozione:", err);
   }
