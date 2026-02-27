@@ -2,7 +2,8 @@
   <div>
     <Motion class="relative group overflow-hidden rounded-xl shadow-lg card" :initial="{ opacity: 0, y: 12 }" :enter="{ opacity: 1, y: 0 }" @click="openModal">
       <!-- Immagine -->
-      <img :src="art.img" :alt="art.title" class="w-full h-72 object-cover bg-white transition-transform duration-500 group-hover:scale-105" />
+      <img :src="art.img" :alt="art.title" class="w-full h-72 bg-white transition-transform duration-500 group-hover:scale-105"
+        :style="{ objectFit: art.img_fit || 'cover', objectPosition: art.img_position || 'center' }" />
 
       <!-- Overlay con titolo e categoria -->
       <div class="absolute inset-0 bg-black bg-opacity-30 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-4">

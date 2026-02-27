@@ -107,12 +107,14 @@ export const useArt = (namespace) =>
             }
         };
 
-        const updateArt = async (id, { title, category, description, imageFile }) => {
+        const updateArt = async (id, { title, category, description, imageFile, img_fit, img_position }) => {
             try {
                 let updatedFields = {
                     title,
                     category,
                     description,
+                    img_fit: img_fit ?? 'cover',
+                    img_position: img_position ?? 'center',
                 };
 
                 // se viene passato un nuovo file

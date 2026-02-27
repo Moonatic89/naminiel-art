@@ -1,5 +1,16 @@
 <template>
   <div class="p-6 bg-white shadow rounded-xl w-full max-w-4xl mx-auto">
+    <!-- Back -->
+    <router-link
+      :to="`/art-${props.namespace}`"
+      class="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-800 mb-4 transition-colors"
+    >
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4">
+        <polyline points="15 18 9 12 15 6"/>
+      </svg>
+      Torna alla lista
+    </router-link>
+
     <!-- Header -->
     <h2 class="text-xl font-semibold mb-4">Dettagli Immagine</h2>
 
@@ -9,7 +20,10 @@
       <p class="text-sm text-gray-600 mb-2">Categoria: {{ art.category }}</p>
       <p class="text-sm text-gray-500 mb-4">{{ art.description }}</p>
 
-      <img v-if="art.img" :src="art.img" :alt="art.title" class="rounded-md max-h-48 object-cover border mb-3" />
+      <div v-if="art.img" class="relative rounded-md overflow-hidden border mb-3 bg-gray-100" style="height: 192px">
+        <img :src="art.img" :alt="art.title" class="w-full h-full"
+          :style="{ objectFit: art.img_fit || 'cover', objectPosition: art.img_position || 'center' }" />
+      </div>
 
       <div class="flex justify-end gap-2">
         <button @click="showConfirm = true" class="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition">Rimuovi</button>
@@ -32,9 +46,17 @@
       <label class="block text-sm font-medium text-gray-700 mb-1">Nuova immagine</label>
       <input type="file" accept="image/*" @change="onFileChange" class="w-full" />
 
-      <div v-if="previewUrl" class="mt-3">
-        <img :src="previewUrl" alt="Anteprima" class="max-h-48 rounded-lg shadow border" />
+      <div v-if="previewUrl" class="mt-3 rounded-lg overflow-hidden border bg-gray-100" style="height: 192px">
+        <img :src="previewUrl" alt="Anteprima" class="w-full h-full"
+          :style="{ objectFit: form.img_fit, objectPosition: form.img_position }" />
       </div>
+
+      <!-- Picker display mode -->
+      <ImageDisplayPicker
+        v-model:fit="form.img_fit"
+        v-model:position="form.img_position"
+        :preview-src="previewUrl"
+      />
 
       <!-- Bottoni -->
       <div class="flex justify-between mt-5">
@@ -67,6 +89,7 @@
 import { computed, onMounted, ref } from "vue";
 import { useArt } from "../../stores/Art/useArt";
 import { useRouter } from "vue-router";
+import ImageDisplayPicker from "../../Components/Utilities/ImageDisplayPicker.vue";
 
 const props = defineProps({
   id: { type: String, required: true },
@@ -80,7 +103,7 @@ const arts = computed(() => artStore.arts);
 const art = computed(() => arts.value.find((a) => a.id == props.id));
 
 const editing = ref(false);
-const form = ref({ title: "", category: "", description: "", image: null });
+const form = ref({ title: "", category: "", description: "", image: null, img_fit: "cover", img_position: "center" });
 const previewUrl = ref(null);
 const loading = ref(false);
 const successMessage = ref("");
@@ -99,6 +122,8 @@ function startEdit() {
     category: art.value.category,
     description: art.value.description,
     image: null,
+    img_fit: art.value.img_fit || 'cover',
+    img_position: art.value.img_position || 'center',
   };
   previewUrl.value = art.value.img;
 }
@@ -125,7 +150,9 @@ async function submitEdit() {
       title: form.value.title,
       category: form.value.category,
       description: form.value.description,
-      imageFile: form.value.image, // opzionale
+      imageFile: form.value.image,
+      img_fit: form.value.img_fit,
+      img_position: form.value.img_position,
     });
 
     successMessage.value = "Immagine aggiornata con successo!";

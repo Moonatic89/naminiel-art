@@ -78,12 +78,14 @@ export const useBlog = defineStore("blog", () => {
         }
     };
 
-    const updatePost = async (id, { title, category, body, imageFile }) => {
+    const updatePost = async (id, { title, category, body, imageFile, img_fit, img_position }) => {
         try {
             let updatedData = {
                 title,
                 category,
                 text: body,
+                img_fit: img_fit ?? 'cover',
+                img_position: img_position ?? 'center',
             };
 
             if (imageFile) {

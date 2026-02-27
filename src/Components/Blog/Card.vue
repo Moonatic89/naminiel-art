@@ -59,7 +59,9 @@ const { isAuthed } = useAuth();
     </div>
 
     <div name="card-body" class="rounded-b-xl bg-gray-100 pb-4 px-4 max-h-[350px] md:max-h-[550px] overflow-y-auto">
-      <img :src="post.img" alt="Immagine del post" class="float-left mr-4 mb-2 w-48 h-48 object-cover rounded-lg" />
+      <img :src="post.img" alt="Immagine del post" class="float-left mr-4 mb-2 w-48 h-48 rounded-lg"
+        :style="{ objectFit: post.img_fit || 'cover', objectPosition: post.img_position || 'center' }" />
+
 
       <div class="text-gray-700 prose prose-rose max-w-none" v-dompurify-html="post.text"></div>
     </div>
