@@ -1,0 +1,86 @@
+<script setup>
+import { Head, Link, router, useForm } from '@inertiajs/vue3';
+import PublicLayout from '@/Layouts/PublicLayout.vue';
+
+const props = defineProps({
+    namespace: String,
+    artwork: Object,
+});
+
+const form = useForm({
+    title: props.artwork?.title || '',
+    category: props.artwork?.category || '',
+    description: props.artwork?.description || '',
+    image: null,
+    image_fit: props.artwork?.image_fit || 'cover',
+    image_position: props.artwork?.image_position || 'center',
+    is_published: props.artwork?.is_published ?? true,
+});
+
+function submit() {
+    if (props.artwork) {
+        form.transform((data) => ({ ...data, _method: 'put' })).post(route('art.update', props.artwork.id), {
+            forceFormData: true,
+        });
+        return;
+    }
+
+    form.post(route('art.store', props.namespace), { forceFormData: true });
+}
+
+function destroyArtwork() {
+    if (!props.artwork || !confirm('Eliminare questa immagine?')) {
+        return;
+    }
+
+    router.delete(route('art.destroy', props.artwork.id));
+}
+</script>
+
+<template>
+    <PublicLayout>
+        <Head :title="artwork ? 'Modifica immagine' : 'Nuova immagine'" />
+
+        <main class="min-h-screen bg-neutral-100 px-4 py-10">
+            <form class="mx-auto max-w-2xl rounded-xl bg-white p-6 shadow" @submit.prevent="submit">
+                <div class="flex items-center gap-3">
+                    <Link :href="route('art.index', namespace)" class="mr-auto text-sm font-semibold text-neutral-500">Torna alla gallery</Link>
+                    <button v-if="artwork" type="button" class="rounded bg-red-600 px-3 py-1.5 text-sm font-semibold text-white" @click="destroyArtwork">
+                        Elimina
+                    </button>
+                </div>
+                <h1 class="mt-4 text-2xl font-bold text-neutral-950">{{ artwork ? 'Modifica immagine' : 'Nuova immagine' }}</h1>
+
+                <div class="mt-6 space-y-4">
+                    <input v-model="form.title" class="w-full rounded border px-3 py-2" placeholder="Titolo" />
+                    <p v-if="form.errors.title" class="text-sm text-red-600">{{ form.errors.title }}</p>
+
+                    <input v-model="form.category" class="w-full rounded border px-3 py-2" placeholder="Categoria" />
+                    <p v-if="form.errors.category" class="text-sm text-red-600">{{ form.errors.category }}</p>
+
+                    <input v-model="form.description" class="w-full rounded border px-3 py-2" placeholder="Descrizione" />
+
+                    <div class="grid gap-3 sm:grid-cols-2">
+                        <select v-model="form.image_fit" class="rounded border px-3 py-2">
+                            <option value="cover">Cover</option>
+                            <option value="contain">Contain</option>
+                        </select>
+                        <input v-model="form.image_position" class="rounded border px-3 py-2" placeholder="Posizione immagine" />
+                    </div>
+
+                    <input type="file" accept="image/*" @input="form.image = $event.target.files[0]" />
+                    <p v-if="form.errors.image" class="text-sm text-red-600">{{ form.errors.image }}</p>
+
+                    <label class="flex items-center gap-2">
+                        <input v-model="form.is_published" type="checkbox" />
+                        <span>Pubblica</span>
+                    </label>
+                </div>
+
+                <button class="mt-6 rounded bg-neutral-900 px-5 py-2 font-semibold text-white" :disabled="form.processing">
+                    Salva
+                </button>
+            </form>
+        </main>
+    </PublicLayout>
+</template>

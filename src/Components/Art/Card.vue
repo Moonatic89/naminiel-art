@@ -1,9 +1,14 @@
 <template>
   <div>
-    <Motion class="relative group overflow-hidden rounded-xl shadow-lg card" :initial="{ opacity: 0, y: 12 }" :enter="{ opacity: 1, y: 0 }" @click="openModal">
-      <!-- Immagine -->
-      <img :src="art.img" :alt="art.title" class="w-full h-72 bg-white transition-transform duration-500 group-hover:scale-105"
-        :style="{ objectFit: art.img_fit || 'cover', objectPosition: art.img_position || 'center' }" />
+    <Motion class="relative group overflow-hidden rounded-xl shadow-lg card cursor-pointer" :initial="{ opacity: 0, y: 12 }" :enter="{ opacity: 1, y: 0 }" @click="$emit('open-lightbox')">
+      <!-- Immagine con Lazy Loading Blur-up -->
+      <LazyImage
+        :src="art.img"
+        :alt="art.title"
+        wrapperClass="w-full bg-slate-100"
+        imgClass="w-full h-auto object-cover transition-transform duration-500 group-hover:scale-105"
+        :imgStyle="{ objectFit: art.img_fit || 'cover', objectPosition: art.img_position || 'center', maxHeight: '800px' }"
+      />
 
       <!-- Overlay con titolo e categoria -->
       <div class="absolute inset-0 bg-black bg-opacity-30 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-4">
@@ -17,81 +22,22 @@
       </div>
     </Motion>
 
-    <!-- Modale -->
-    <transition name="fade">
-      <div @contextmenu.prevent v-if="showModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-70" @click="closeModal">
-        <!-- contenuto modale -->
-        <div class="bg-white rounded-2xl w-full max-w-md mx-4 sm:mx-0 overflow-y-auto max-h-[90vh] p-4" @click.stop>
-          <button class="ml-auto block text-gray-500 hover:text-gray-800" @click="closeModal">✕</button>
-          <img :src="art.img" :alt="art.title" class="w-full h-full object-contain bg-white transition-transform duration-500 group-hover:scale-105" />
-          <h2 class="text-xl font-bold mb-2">{{ art.title }}</h2>
-          <p class="text-sm text-gray-700 mb-2"><strong>Categoria:</strong> {{ art.category }}</p>
-          <p class="text-gray-600 mb-4">{{ art.description }}</p>
-
-          <!-- Bottone rimozione, visibile solo se autenticato -->
-          <button v-if="isAuthed" class="px-3 py-1 rounded bg-red-600 text-white hover:bg-red-700" @click="confirmRemove">Rimuovi Art</button>
-        </div>
-      </div>
-    </transition>
-
-    <!-- Modal conferma rimozione -->
-    <Modal
-      :show="showConfirmModal"
-      title="Conferma rimozione"
-      message="Vuoi davvero eliminare questa immagine?"
-      @cancel="showConfirmModal = false"
-      @confirm="doRemove"
-    />
   </div>
 </template>
 
 <script setup>
 import { useAuth } from "@/Composables/User/useAuth";
-import { ref } from "vue";
 import { useArt } from "../../stores/Art/useArt";
-import Modal from "../Utilities/Modal.vue";
-
-const { isAuthed } = useAuth();
-
-const showModal = ref(false);
-const openModal = () => (showModal.value = true);
-const closeModal = () => (showModal.value = false);
+import LazyImage from "../Utilities/LazyImage.vue";
 
 const props = defineProps({
   art: Object,
   ns: String,
 });
 
-const useArtStore = useArt(props.ns);
-const artStore = useArtStore();
+defineEmits(['open-lightbox']);
 
-const showConfirmModal = ref(false);
+const { isAuthed } = useAuth();
+const artStore = useArt(props.ns)();
 
-async function confirmRemove() {
-  showConfirmModal.value = true;
-}
-
-async function doRemove() {
-  try {
-    await artStore.removeArt(props.art.id, props.art.fileName);
-    showConfirmModal.value = false;
-    closeModal();
-  } catch (err) {
-    alert("Errore nella rimozione: " + err.message);
-  }
-}
-// onMounted(() => {
-//   window.addEventListener("contextmenu", (e) => e.preventDefault());
-// });
 </script>
-
-<style scoped>
-.fade-enter-active,
-.fade-leave-active {
-  transition: opacity 0.2s ease;
-}
-.fade-enter-from,
-.fade-leave-to {
-  opacity: 0;
-}
-</style>

@@ -243,6 +243,7 @@ async function publishAll() {
         category: item.category.trim(),
         description: item.description.trim(),
         imageFile: item.file,
+        is_published: item.is_published !== false,
       });
       item.status = "done";
     } catch (err) {

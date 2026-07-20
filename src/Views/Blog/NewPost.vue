@@ -102,6 +102,17 @@
         </div>
       </div>
 
+      <!-- Stato Pubblicazione -->
+      <div class="mb-6 bg-gray-50 border rounded-xl p-4 cursor-pointer hover:bg-gray-100 transition" @click="form.is_published = !form.is_published">
+        <label class="flex items-center gap-3 cursor-pointer">
+          <input v-model="form.is_published" type="checkbox" class="w-5 h-5 text-blue-600 rounded focus:ring-blue-500 cursor-pointer pointer-events-none" />
+          <div>
+            <span class="block text-sm font-semibold text-gray-800">Pubblica questo post</span>
+            <span class="block text-xs text-gray-500 mt-0.5">Se disattivato, il post verrà salvato come Bozza e sarà visibile solo agli admin.</span>
+          </div>
+        </label>
+      </div>
+
       <!-- Bottone invio -->
       <div
         v-motion

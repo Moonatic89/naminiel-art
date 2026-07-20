@@ -1,26 +1,64 @@
 import { defineStore } from "pinia";
 import { ref, computed } from "vue";
 import { supabase } from "../../supabase";
+import { useAuth } from "../../Composables/User/useAuth";
 
 export const useBlog = defineStore("blog", () => {
     const posts = ref([]);
 
-    const fetchPosts = async () => {
+    // Paginazione
+    const pageSize = 15;
+    const hasMore = ref(true);
+    const isLoading = ref(false);
+
+    const fetchPosts = async (reset = false) => {
+        if (isLoading.value) return;
+
+        if (reset) {
+            posts.value = [];
+            hasMore.value = true;
+        }
+
+        if (!hasMore.value) return;
+
+        isLoading.value = true;
+        const from = posts.value.length;
+        const to = from + pageSize - 1;
+
         try {
             const { data, error } = await supabase
                 .from('posts')
-                .select('*')
-                .order('created_at', { ascending: false });
+                .select('*', { count: 'exact' })
+                .order('created_at', { ascending: false })
+                .range(from, to);
 
             if (error) throw error;
-            posts.value = data;
+
+            if (data) {
+                if (reset) {
+                    posts.value = data;
+                } else {
+                    posts.value = [...posts.value, ...data];
+                }
+                if (data.length < pageSize) {
+                    hasMore.value = false;
+                }
+            }
         } catch (err) {
             console.error("[fetchPosts] Errore:", err.message);
             throw err;
+        } finally {
+            isLoading.value = false;
         }
     };
 
+    const loadMore = async () => {
+        await fetchPosts(false);
+    };
+
     const selectedCategory = ref(null);
+    const searchQuery = ref('');
+    const { isAuthed } = useAuth();
 
     const setCategory = (newCategory) => {
         selectedCategory.value = newCategory;
@@ -29,11 +67,25 @@ export const useBlog = defineStore("blog", () => {
     const categories = computed(() => [...new Set(posts.value.map((p) => p.category))]);
 
     const filteredPosts = computed(() => {
-        if (!selectedCategory.value) return posts.value;
-        return posts.value.filter((p) => p.category === selectedCategory.value);
+        let res = posts.value;
+        if (!isAuthed.value) {
+            res = res.filter((p) => p.is_published !== false);
+        }
+        if (selectedCategory.value) {
+            res = res.filter((p) => p.category === selectedCategory.value);
+        }
+        if (searchQuery.value) {
+            const q = searchQuery.value.toLowerCase();
+            res = res.filter((p) =>
+                p.title?.toLowerCase().includes(q) ||
+                p.category?.toLowerCase().includes(q) ||
+                p.text?.toLowerCase().includes(q)
+            );
+        }
+        return res;
     });
 
-    const addPost = async ({ title, category, body, imageFile }) => {
+    const addPost = async ({ title, category, body, imageFile, is_published = true }) => {
         try {
 
             const ext = imageFile.name.split('.').pop();
@@ -59,6 +111,7 @@ export const useBlog = defineStore("blog", () => {
                         title,
                         category,
                         text: body,
+                        is_published,
                         img: publicUrl.publicUrl,
                         created_at: new Date().toISOString()
                     }
@@ -78,7 +131,7 @@ export const useBlog = defineStore("blog", () => {
         }
     };
 
-    const updatePost = async (id, { title, category, body, imageFile, img_fit, img_position }) => {
+    const updatePost = async (id, { title, category, body, imageFile, img_fit, img_position, is_published }) => {
         try {
             let updatedData = {
                 title,
@@ -87,6 +140,9 @@ export const useBlog = defineStore("blog", () => {
                 img_fit: img_fit ?? 'cover',
                 img_position: img_position ?? 'center',
             };
+            if (is_published !== undefined) {
+                updatedData.is_published = is_published;
+            }
 
             if (imageFile) {
                 // Recupera il vecchio file per rimuoverlo dopo l'upload
@@ -180,8 +236,11 @@ export const useBlog = defineStore("blog", () => {
         selectedCategory,
         categories,
         filteredPosts,
+        hasMore,
+        isLoading,
         addPost,
         fetchPosts,
+        loadMore,
         updatePost,
         getPostById,
         deletePost

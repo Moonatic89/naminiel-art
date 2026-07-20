@@ -60,8 +60,12 @@ const routes = [
         name: 'NewCard',
         component: () => import('./Views/Qr/NewCard.vue'),
     },
-    // #endregion
     // #region Extra
+    {
+        path: '/commission',
+        name: 'Commission',
+        component: () => import('./Views/Commission/Commission.vue'),
+    },
     {
         path: '/about',
         name: 'About',

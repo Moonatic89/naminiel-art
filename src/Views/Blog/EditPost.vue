@@ -18,7 +18,15 @@
 
       <!-- Stato VISUALIZZAZIONE -->
       <div v-if="!editing && post">
-        <h3 class="font-bold text-lg text-gray-800 mb-1">{{ post.title }}</h3>
+        <div class="flex items-center gap-2 mb-1">
+          <h3 class="font-bold text-lg text-gray-800">{{ post.title }}</h3>
+          <span 
+            class="px-2 py-0.5 rounded text-xs font-semibold"
+            :class="post.is_published === false ? 'bg-yellow-100 text-yellow-800' : 'bg-green-100 text-green-800'"
+          >
+            {{ post.is_published === false ? 'Bozza' : 'Pubblicato' }}
+          </span>
+        </div>
         <p class="text-sm text-gray-600 mb-2">Categoria: {{ post.category }}</p>
 
         <div v-if="post.img" class="relative rounded-md overflow-hidden border mb-2 bg-gray-100" style="height: 160px">
@@ -56,6 +64,12 @@
 
         <!-- Anteprima testo -->
         <div v-if="form.body" class="mb-6 p-3 bg-gray-100 border rounded-md prose max-w-none" v-dompurify-html="form.body"></div>
+
+        <!-- Stato Pubblicazione -->
+        <label class="flex items-center gap-2 mb-4 bg-gray-50 p-3 rounded-lg border cursor-pointer hover:bg-gray-100 transition">
+          <input v-model="form.is_published" type="checkbox" class="w-5 h-5 text-blue-600 rounded focus:ring-blue-500 cursor-pointer" />
+          <span class="text-sm font-medium text-gray-700 select-none">Pubblica questo post (se disattivato, resterà in Bozza)</span>
+        </label>
 
         <!-- Immagine -->
         <div class="mb-6">
@@ -115,7 +129,7 @@ const post = computed(() => {
 });
 
 const editing = ref(false);
-const form = ref({ title: "", category: "", body: "", image: null, img_fit: "cover", img_position: "center" });
+const form = ref({ title: "", category: "", body: "", image: null, img_fit: "cover", img_position: "center", is_published: true });
 const previewUrl = ref(null);
 const loading = ref(false);
 const successMessage = ref("");
@@ -136,13 +150,14 @@ function startEdit() {
     image: null,
     img_fit: post.value.img_fit || 'cover',
     img_position: post.value.img_position || 'center',
+    is_published: post.value.is_published !== false,
   };
   previewUrl.value = post.value.img;
 }
 
 function cancelEdit() {
   editing.value = false;
-  form.value = { title: "", category: "", body: "", image: null };
+  form.value = { title: "", category: "", body: "", image: null, is_published: true };
   previewUrl.value = null;
 }
 
@@ -165,6 +180,7 @@ async function submitEdit() {
       imageFile: form.value.image,
       img_fit: form.value.img_fit,
       img_position: form.value.img_position,
+      is_published: form.value.is_published,
     });
 
     successMessage.value = "Post aggiornato con successo!";
