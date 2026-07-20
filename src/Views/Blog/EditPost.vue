@@ -2,15 +2,37 @@
 
   <div v-if="isAuthed" class="pt-10 pb-20 px-4 bg-gray-200 min-h-screen">
     <div v-motion :initial="{ opacity: 0, y: 20 }" :enter="{ opacity: 1, y: 0, transition: { duration: 0.4 } }" class="max-w-2xl mx-auto bg-white shadow p-6 rounded-2xl">
+      <!-- Back -->
+      <router-link
+        to="/blog"
+        class="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-800 mb-4 transition-colors"
+      >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4">
+          <polyline points="15 18 9 12 15 6"/>
+        </svg>
+        Torna al blog
+      </router-link>
+
       <!-- Header -->
       <h2 class="text-2xl font-bold mb-2 text-gray-800">Dettagli Post</h2>
 
       <!-- Stato VISUALIZZAZIONE -->
       <div v-if="!editing && post">
-        <h3 class="font-bold text-lg text-gray-800 mb-1">{{ post.title }}</h3>
+        <div class="flex items-center gap-2 mb-1">
+          <h3 class="font-bold text-lg text-gray-800">{{ post.title }}</h3>
+          <span 
+            class="px-2 py-0.5 rounded text-xs font-semibold"
+            :class="post.is_published === false ? 'bg-yellow-100 text-yellow-800' : 'bg-green-100 text-green-800'"
+          >
+            {{ post.is_published === false ? 'Bozza' : 'Pubblicato' }}
+          </span>
+        </div>
         <p class="text-sm text-gray-600 mb-2">Categoria: {{ post.category }}</p>
 
-        <img v-if="post.img" :src="post.img" alt="Immagine post" class="rounded-md max-h-40 object-cover border mb-2" />
+        <div v-if="post.img" class="relative rounded-md overflow-hidden border mb-2 bg-gray-100" style="height: 160px">
+          <img :src="post.img" alt="Immagine post" class="w-full h-full"
+            :style="{ objectFit: post.img_fit || 'cover', objectPosition: post.img_position || 'center' }" />
+        </div>
 
         <div class="prose max-w-none text-sm" v-dompurify-html="post.text"></div>
 
@@ -43,13 +65,26 @@
         <!-- Anteprima testo -->
         <div v-if="form.body" class="mb-6 p-3 bg-gray-100 border rounded-md prose max-w-none" v-dompurify-html="form.body"></div>
 
+        <!-- Stato Pubblicazione -->
+        <label class="flex items-center gap-2 mb-4 bg-gray-50 p-3 rounded-lg border cursor-pointer hover:bg-gray-100 transition">
+          <input v-model="form.is_published" type="checkbox" class="w-5 h-5 text-blue-600 rounded focus:ring-blue-500 cursor-pointer" />
+          <span class="text-sm font-medium text-gray-700 select-none">Pubblica questo post (se disattivato, resterà in Bozza)</span>
+        </label>
+
         <!-- Immagine -->
         <div class="mb-6">
           <label class="block text-sm font-medium text-gray-700 mb-1">Nuova immagine</label>
           <input type="file" accept="image/*" @change="onFileChange" class="w-full" />
-          <div v-if="previewUrl" class="mt-3">
-            <img :src="previewUrl" alt="Anteprima immagine" class="rounded-md max-h-40 object-cover border" />
+          <div v-if="previewUrl" class="mt-3 rounded-md overflow-hidden border bg-gray-100" style="height: 160px">
+            <img :src="previewUrl" alt="Anteprima immagine" class="w-full h-full"
+              :style="{ objectFit: form.img_fit, objectPosition: form.img_position }" />
           </div>
+          <!-- Picker display mode -->
+          <ImageDisplayPicker
+            v-model:fit="form.img_fit"
+            v-model:position="form.img_position"
+            :preview-src="previewUrl"
+          />
         </div>
 
         <!-- Bottoni -->
@@ -75,6 +110,8 @@ import { useAuth } from "@/Composables/User/useAuth";
 import { useBlog } from "@/stores/Blog/Blog";
 import { computed, onMounted, ref } from "vue";
 import Modal from "../../Components/Utilities/Modal.vue";
+import ImageDisplayPicker from "../../Components/Utilities/ImageDisplayPicker.vue";
+import { useRouter } from "vue-router";
 
 const { isAuthed } = useAuth();
 
@@ -92,7 +129,7 @@ const post = computed(() => {
 });
 
 const editing = ref(false);
-const form = ref({ title: "", category: "", body: "", image: null });
+const form = ref({ title: "", category: "", body: "", image: null, img_fit: "cover", img_position: "center", is_published: true });
 const previewUrl = ref(null);
 const loading = ref(false);
 const successMessage = ref("");
@@ -111,13 +148,16 @@ function startEdit() {
     category: post.value.category,
     body: post.value.text,
     image: null,
+    img_fit: post.value.img_fit || 'cover',
+    img_position: post.value.img_position || 'center',
+    is_published: post.value.is_published !== false,
   };
   previewUrl.value = post.value.img;
 }
 
 function cancelEdit() {
   editing.value = false;
-  form.value = { title: "", category: "", body: "", image: null };
+  form.value = { title: "", category: "", body: "", image: null, is_published: true };
   previewUrl.value = null;
 }
 
@@ -138,6 +178,9 @@ async function submitEdit() {
       category: form.value.category,
       body: form.value.body,
       imageFile: form.value.image,
+      img_fit: form.value.img_fit,
+      img_position: form.value.img_position,
+      is_published: form.value.is_published,
     });
 
     successMessage.value = "Post aggiornato con successo!";
@@ -150,14 +193,17 @@ async function submitEdit() {
   }
 }
 
+const router = useRouter();
+
 // #region Modal
 
 const showConfirm = ref(false);
 
 const removePost = async () => {
   try {
-    await blog.deletePost(props.id); // funzione che creiamo nello store
+    await blog.deletePost(props.id);
     showConfirm.value = false;
+    router.push('/blog');
   } catch (err) {
     console.error("Errore durante la rimozione:", err);
   }

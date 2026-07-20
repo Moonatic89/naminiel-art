@@ -3,6 +3,7 @@
 import { useAuth } from "@/Composables/User/useAuth";
 import { motion } from "motion-v";
 import { useBlog } from "../../stores/Blog/Blog";
+import LazyImage from "../Utilities/LazyImage.vue";
 
 const blog = useBlog();
 
@@ -49,7 +50,7 @@ const { isAuthed } = useAuth();
       <div class="flex">
         <h2 class="text-xl font-bold mb-2 w-full flex gap-2">
           {{ post.title }} -
-          <span class="animate-pulse" @click="blog.setCategory(post.category)"> {{ post.category }} - </span>
+          <span class="cursor-pointer hover:underline" @click="blog.setCategory(post.category)"> {{ post.category }} - </span>
           <span>{{ formatDate(post.created_at) }}</span>
           <div class="ml-auto cursor-pointer" v-if="isAuthed">
             <router-link :to="`/post/edit/${post.id}`"><i class="fa-solid fa-pen-to-square"></i></router-link>
@@ -59,7 +60,12 @@ const { isAuthed } = useAuth();
     </div>
 
     <div name="card-body" class="rounded-b-xl bg-gray-100 pb-4 px-4 max-h-[350px] md:max-h-[550px] overflow-y-auto">
-      <img :src="post.img" alt="Immagine del post" class="float-left mr-4 mb-2 w-48 h-48 object-cover rounded-lg" />
+      <LazyImage
+        :src="post.img"
+        alt="Immagine del post"
+        wrapperClass="float-left mr-4 mb-2 w-48 h-48 rounded-lg"
+        :imgStyle="{ objectFit: post.img_fit || 'cover', objectPosition: post.img_position || 'center' }"
+      />
 
       <div class="text-gray-700 prose prose-rose max-w-none" v-dompurify-html="post.text"></div>
     </div>

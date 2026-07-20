@@ -2,26 +2,64 @@
 import { defineStore } from "pinia";
 import { ref, computed } from "vue";
 import { supabase } from "../../supabase";
+import { useAuth } from "../../Composables/User/useAuth";
 
 export const useArt = (namespace) =>
     defineStore(`art-${namespace}`, () => {
         const arts = ref([]);
         const selectedCategory = ref(null);
+        const searchQuery = ref('');
+        const { isAuthed } = useAuth();
 
-        const fetchArts = async () => {
+        // Paginazione
+        const pageSize = 15;
+        const hasMore = ref(true);
+        const isLoading = ref(false);
+
+        const fetchArts = async (reset = false) => {
+            if (isLoading.value) return;
+
+            if (reset) {
+                arts.value = [];
+                hasMore.value = true;
+            }
+
+            if (!hasMore.value) return;
+
+            isLoading.value = true;
+            const from = arts.value.length;
+            const to = from + pageSize - 1;
+
             try {
                 const { data, error } = await supabase
                     .from('arts')
-                    .select('*')
+                    .select('*', { count: 'exact' })
                     .eq('namespace', namespace)
-                    .order('created_at', { ascending: false });
+                    .order('created_at', { ascending: false })
+                    .range(from, to);
 
                 if (error) throw error;
-                arts.value = data || [];
+
+                if (data) {
+                    if (reset) {
+                        arts.value = data;
+                    } else {
+                        arts.value = [...arts.value, ...data];
+                    }
+                    if (data.length < pageSize) {
+                        hasMore.value = false;
+                    }
+                }
             } catch (err) {
                 console.error(`[fetchArts ${namespace}]`, err.message);
                 throw err;
+            } finally {
+                isLoading.value = false;
             }
+        };
+
+        const loadMore = async () => {
+            await fetchArts(false);
         };
 
         const setCategory = (newCategory) => {
@@ -33,11 +71,26 @@ export const useArt = (namespace) =>
         );
 
         const filteredArts = computed(() => {
-            if (!selectedCategory.value) return arts.value;
-            return arts.value.filter((a) => a.category === selectedCategory.value);
+            let res = arts.value;
+            // Se non è admin, mostra solo quelle pubblicate
+            if (!isAuthed.value) {
+                res = res.filter((a) => a.is_published !== false);
+            }
+            if (selectedCategory.value) {
+                res = res.filter((a) => a.category === selectedCategory.value);
+            }
+            if (searchQuery.value) {
+                const q = searchQuery.value.toLowerCase();
+                res = res.filter((a) =>
+                    a.title?.toLowerCase().includes(q) ||
+                    a.category?.toLowerCase().includes(q) ||
+                    a.description?.toLowerCase().includes(q)
+                );
+            }
+            return res;
         });
 
-        const addArt = async ({ title, category, description, imageFile }) => {
+        const addArt = async ({ title, category, description, imageFile, is_published = true }) => {
             try {
                 const ext = imageFile.name.split(".").pop();
                 const randomName = `${Date.now()}-${Math.random()
@@ -59,6 +112,7 @@ export const useArt = (namespace) =>
                     title,
                     category,
                     description,
+                    is_published,
                     img: publicUrl.publicUrl,
                     file_name: randomName,
                     namespace: namespace,
@@ -107,13 +161,18 @@ export const useArt = (namespace) =>
             }
         };
 
-        const updateArt = async (id, { title, category, description, imageFile }) => {
+        const updateArt = async (id, { title, category, description, imageFile, img_fit, img_position, is_published }) => {
             try {
                 let updatedFields = {
                     title,
                     category,
                     description,
+                    img_fit: img_fit ?? 'cover',
+                    img_position: img_position ?? 'center',
                 };
+                if (is_published !== undefined) {
+                    updatedFields.is_published = is_published;
+                }
 
                 // se viene passato un nuovo file
                 if (imageFile) {
@@ -159,9 +218,14 @@ export const useArt = (namespace) =>
             selectedCategory,
             categories,
             filteredArts,
+            hasMore,
+            isLoading,
             setCategory,
             fetchArts,
+            loadMore,
             addArt,
+            updateArt,
             removeArt,
+            searchQuery,
         };
     });

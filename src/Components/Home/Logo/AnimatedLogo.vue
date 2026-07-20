@@ -56,7 +56,7 @@ const maxFrame = 114;
   // Avvia l'animazione solo quando i frame sono tutti disponibili
   interval = setInterval(() => {
     currentFrame.value = currentFrame.value < maxFrame ? currentFrame.value + 1 : 1;
-  }, 50);
+  }, 60);
 })();
 
 const frame = computed(() => frames.value[currentFrame.value] ?? frames.value[0]);
