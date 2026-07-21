@@ -3,7 +3,7 @@ FROM php:8.2-cli AS vendor
 WORKDIR /app
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends git libzip-dev unzip \
+    && apt-get install -y --no-install-recommends git libsqlite3-dev libzip-dev unzip \
     && docker-php-ext-install pdo_mysql pdo_sqlite zip \
     && rm -rf /var/lib/apt/lists/*
 
@@ -38,7 +38,7 @@ FROM php:8.2-apache AS runtime
 WORKDIR /var/www/html
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends libzip-dev unzip \
+    && apt-get install -y --no-install-recommends libsqlite3-dev libzip-dev unzip \
     && docker-php-ext-install pdo_mysql pdo_sqlite zip \
     && a2enmod rewrite headers \
     && sed -ri 's!/var/www/html!/var/www/html/public!g' /etc/apache2/sites-available/*.conf /etc/apache2/apache2.conf \
