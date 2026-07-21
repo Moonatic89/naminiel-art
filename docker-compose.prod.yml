@@ -1,0 +1,30 @@
+services:
+  app:
+    build:
+      context: ./laravel
+      target: runtime
+    image: naminiel-art:latest
+    container_name: naminiel-art
+    restart: unless-stopped
+    env_file:
+      - ./laravel/.env.production
+    volumes:
+      - naminiel_data:/data
+      - naminiel_storage:/var/www/html/storage
+    networks:
+      - coolify
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=coolify
+      - traefik.http.routers.naminiel-art.entrypoints=http
+      - traefik.http.routers.naminiel-art.rule=Host(`${APP_DOMAIN}`)
+      - traefik.http.routers.naminiel-art.service=naminiel-art
+      - traefik.http.services.naminiel-art.loadbalancer.server.port=80
+
+volumes:
+  naminiel_data:
+  naminiel_storage:
+
+networks:
+  coolify:
+    external: true
