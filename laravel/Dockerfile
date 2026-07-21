@@ -1,6 +1,13 @@
-FROM composer:2 AS vendor
+FROM php:8.2-cli AS vendor
 
 WORKDIR /app
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends git libzip-dev unzip \
+    && docker-php-ext-install pdo_mysql pdo_sqlite zip \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
 COPY composer.json composer.lock ./
 COPY app app
