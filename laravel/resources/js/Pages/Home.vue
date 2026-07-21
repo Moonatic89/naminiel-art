@@ -2,8 +2,8 @@
 import { Head, Link } from '@inertiajs/vue3';
 import PublicLayout from '@/Layouts/PublicLayout.vue';
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
-import cyanWave from '../../../../src/assets/wave/cyanWave.png';
-import redWave from '../../../../src/assets/wave/redWave.png';
+import cyanWave from '../assets/wave/cyanWave.png';
+import redWave from '../assets/wave/redWave.png';
 
 const originalImage = 'https://hqbmfndntgzbgprrbrhm.supabase.co/storage/v1/object/public/nav/nav_venerdi.webp';
 const fanArtImage = 'https://hqbmfndntgzbgprrbrhm.supabase.co/storage/v1/object/public/nav/nav_goku.webp';
