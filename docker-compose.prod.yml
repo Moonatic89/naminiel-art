@@ -3,6 +3,9 @@ services:
     build:
       context: ./laravel
       target: runtime
+      args:
+        SOURCE_COMMIT: ${SOURCE_COMMIT:-unknown}
+        BUILD_DATE: ${BUILD_DATE:-unknown}
     image: naminiel-art:latest
     container_name: naminiel-art
     restart: unless-stopped

@@ -37,6 +37,12 @@ FROM php:8.2-apache AS runtime
 
 WORKDIR /var/www/html
 
+ARG SOURCE_COMMIT=unknown
+ARG BUILD_DATE=unknown
+
+LABEL org.opencontainers.image.revision="${SOURCE_COMMIT}" \
+    org.opencontainers.image.created="${BUILD_DATE}"
+
 RUN apt-get update \
     && apt-get install -y --no-install-recommends libsqlite3-dev libzip-dev unzip \
     && docker-php-ext-install pdo_mysql pdo_sqlite zip \
@@ -51,10 +57,13 @@ COPY docker/entrypoint.sh /usr/local/bin/naminiel-entrypoint
 
 RUN chmod +x /usr/local/bin/naminiel-entrypoint \
     && mkdir -p /data storage/framework/cache/data storage/framework/sessions storage/framework/views storage/logs storage/app/public bootstrap/cache \
-    && chown -R www-data:www-data /data storage bootstrap/cache
+    && printf '{"source_commit":"%s","build_date":"%s"}\n' "${SOURCE_COMMIT}" "${BUILD_DATE}" > public/build-info.json \
+    && chown -R www-data:www-data /data storage bootstrap/cache public/build-info.json
 
 ENV APP_ENV=production \
     APP_DEBUG=false \
+    SOURCE_COMMIT="${SOURCE_COMMIT}" \
+    BUILD_DATE="${BUILD_DATE}" \
     LOG_CHANNEL=stderr \
     DB_CONNECTION=sqlite \
     DB_DATABASE=/data/database.sqlite \
