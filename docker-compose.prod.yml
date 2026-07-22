@@ -1,7 +1,7 @@
 services:
   app:
     build:
-      context: ./laravel
+      context: .
       target: runtime
       args:
         SOURCE_COMMIT: ${SOURCE_COMMIT:-unknown}
@@ -10,7 +10,7 @@ services:
     container_name: naminiel-art
     restart: unless-stopped
     env_file:
-      - ./laravel/.env.production
+      - ./.env.production
     volumes:
       - naminiel_data:/data
       - naminiel_storage:/var/www/html/storage

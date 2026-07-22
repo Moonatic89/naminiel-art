@@ -6,18 +6,29 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
+
+/.phpunit.cache
+/.phpunit.result.cache
+/vendor
+/public/build
+/public/hot
+/public/storage
+/storage/*.key
+.env.backup
+.env.production
+auth.json
 # Ignora il file di configurazione del token
 src/config.js
 src/fb_key.json
-.env
 node_modules
 dist
 dist-ssr
 *.local
+.env
 
 # Editor directories and files
-.vscode/*
-!.vscode/extensions.json
+/.fleet
+/.vscode
 .idea
 .DS_Store
 *.suo

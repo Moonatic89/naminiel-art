@@ -3,7 +3,7 @@ set -Eeuo pipefail
 
 APP_DIR="${APP_DIR:-/home/deploy/apps/naminiel-art}"
 COMPOSE_FILE="${COMPOSE_FILE:-docker-compose.prod.yml}"
-ENV_FILE="${ENV_FILE:-laravel/.env.production}"
+ENV_FILE="${ENV_FILE:-.env.production}"
 APP_CONTAINER="${APP_CONTAINER:-naminiel-art}"
 APP_URL="${APP_URL:-http://naminiel-art.217.160.191.251.sslip.io}"
 LOG_DIR="${LOG_DIR:-/home/deploy/jobs/naminiel-art/logs}"

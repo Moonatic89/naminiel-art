@@ -1,5 +1,6 @@
 <template>
   <div class="relative h-screen w-full overflow-hidden">
+    QUI
     <!-- INTRO -->
     <div
       v-if="!introDone"
