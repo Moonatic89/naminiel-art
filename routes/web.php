@@ -4,7 +4,9 @@ use App\Http\Controllers\ArtworkController;
 use App\Http\Controllers\BlogPostController;
 use App\Http\Controllers\CommissionRequestController;
 use App\Http\Controllers\HomeController;
+use App\Http\Controllers\HomeManagerController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\QrCodeCardController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -30,6 +32,7 @@ Route::get('/art-og', [ArtworkController::class, 'index'])->defaults('namespace'
 Route::get('/art-fa', [ArtworkController::class, 'index'])->defaults('namespace', 'fa')->name('art.fa');
 Route::get('/commission', [CommissionRequestController::class, 'create'])->name('commission.create');
 Route::post('/commission', [CommissionRequestController::class, 'store'])->name('commission.store');
+Route::get('/cards/{qrCodeCard:code}', [QrCodeCardController::class, 'show'])->name('qr-cards.show');
 
 Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
@@ -51,6 +54,21 @@ Route::middleware(['auth', 'admin'])->group(function () {
     Route::delete('/admin/artwork/{artwork}', [ArtworkController::class, 'destroy'])->name('art.destroy');
 
     Route::get('/admin/commissions', [CommissionRequestController::class, 'index'])->name('commission.index');
+
+    Route::get('/admin/home', [HomeManagerController::class, 'index'])->name('home-manager.index');
+    Route::put('/admin/home/sections/{section:key}', [HomeManagerController::class, 'updateSection'])->name('home-manager.sections.update');
+    Route::post('/admin/home/sections/{section:key}/images', [HomeManagerController::class, 'uploadImage'])->name('home-manager.images.upload');
+    Route::put('/admin/home/sections/{section:key}/images', [HomeManagerController::class, 'renameImage'])->name('home-manager.images.rename');
+    Route::put('/admin/home/sections/{section:key}/images/selection', [HomeManagerController::class, 'selectImage'])->name('home-manager.images.select');
+    Route::post('/admin/home/sections/{section:key}/cards', [HomeManagerController::class, 'storeCard'])->name('home-manager.cards.store');
+    Route::put('/admin/home/sections/{section:key}/cards/{card}', [HomeManagerController::class, 'updateCard'])->name('home-manager.cards.update');
+    Route::delete('/admin/home/sections/{section:key}/cards/{card}', [HomeManagerController::class, 'destroyCard'])->name('home-manager.cards.destroy');
+    Route::put('/admin/home/sections/{section:key}/texts', [HomeManagerController::class, 'updateText'])->name('home-manager.texts.update');
+
+    Route::get('/admin/qr-cards', [QrCodeCardController::class, 'index'])->name('qr-cards.index');
+    Route::post('/admin/qr-cards', [QrCodeCardController::class, 'store'])->name('qr-cards.store');
+    Route::put('/admin/qr-cards/{qrCodeCard:id}', [QrCodeCardController::class, 'update'])->name('qr-cards.update');
+    Route::delete('/admin/qr-cards/{qrCodeCard:id}', [QrCodeCardController::class, 'destroy'])->name('qr-cards.destroy');
 });
 
 require __DIR__.'/auth.php';

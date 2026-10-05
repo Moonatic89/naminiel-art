@@ -2,13 +2,13 @@ export const homeImagePool = {
     hero: {
         original: [
             {
-                src: 'https://hqbmfndntgzbgprrbrhm.supabase.co/storage/v1/object/public/nav/nav_venerdi.webp',
+                src: '/media/home/hero/ven.webp',
                 alt: 'Original art preview',
             },
         ],
         fanArt: [
             {
-                src: 'https://hqbmfndntgzbgprrbrhm.supabase.co/storage/v1/object/public/nav/nav_goku.webp',
+                src: '/media/home/hero/gok.webp',
                 alt: 'Fan art preview',
             },
         ],

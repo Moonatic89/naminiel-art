@@ -55,7 +55,8 @@ COPY --from=assets /app/public/build public/build
 COPY . .
 COPY docker/entrypoint.sh /usr/local/bin/naminiel-entrypoint
 
-RUN chmod +x /usr/local/bin/naminiel-entrypoint \
+RUN rm -f bootstrap/cache/*.php \
+    && chmod +x /usr/local/bin/naminiel-entrypoint \
     && mkdir -p /data storage/framework/cache/data storage/framework/sessions storage/framework/views storage/logs storage/app/public bootstrap/cache \
     && printf '{"source_commit":"%s","build_date":"%s"}\n' "${SOURCE_COMMIT}" "${BUILD_DATE}" > public/build-info.json \
     && chown -R www-data:www-data /data storage bootstrap/cache public/build-info.json

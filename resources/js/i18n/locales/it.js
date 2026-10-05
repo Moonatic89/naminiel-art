@@ -1,6 +1,8 @@
 import polaroids from './polaroids/it';
 import lucifer from './lucifer/it';
+import qrCards from './qrCards/it';
 import roleplay from './roleplay/it';
+import fanart from './fanart/it';
 
 export default {
     localeName: 'Italiano',
@@ -137,17 +139,8 @@ export default {
                     ['Ritratto', 'Una posa ferma, uno sguardo che resta.'],
                 ],
             },
-            fanart: {
-                kicker: '11 / Fan Art',
-                title: 'Fanart',
-                body: 'Omaggi, icone e scene riconoscibili reinterpretate con una firma personale, per chi ama un personaggio e vuole vederlo respirare in modo nuovo.',
-                items: [
-                    ['Omaggio', 'Illustrazioni fedeli allo spirito della fonte, ma con una mano riconoscibile.'],
-                    ['Icona', 'Personaggi noti ripensati con taglio illustrativo.'],
-                    ['Scena', 'Un momento riconoscibile composto come una stampa.'],
-                    ['Energia', 'Il gesto giusto, prima che l’immagine scappi.'],
-                ],
-            },
+            fanart,
         },
     },
+    qrCards,
 };

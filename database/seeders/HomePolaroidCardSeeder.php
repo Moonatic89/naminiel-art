@@ -15,7 +15,7 @@ class HomePolaroidCardSeeder extends Seeder
             ['mt-coronet', '/media/home/polaroids/polaroid-03.webp', 'mtCoronet', false],
             ['azalea-park', '/media/home/polaroids/polaroid-04.webp', 'azaleaPark', false],
             ['cianwood-hatch', '/media/home/polaroids/polaroid-05.webp', 'cianwoodHatch', false],
-            ['cianwood-shiny', '/media/home/polaroids/polaroid-06.webp', 'cianwoodShiny', true],
+            ['cianwood-shiny', '/media/home/polaroids/polaroid-05_s.webp', 'cianwoodShiny', true],
         ])->each(function (array $card, int $index) {
             HomePolaroidCard::updateOrCreate(
                 ['slug' => $card[0]],

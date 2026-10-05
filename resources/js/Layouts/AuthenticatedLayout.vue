@@ -32,6 +32,12 @@ const showingNavigationDropdown = ref(false);
                                 <NavLink :href="route('home')" :active="route().current('home')">
                                     Home
                                 </NavLink>
+                                <NavLink v-if="$page.props.auth.user?.role === 'admin'" :href="route('qr-cards.index')" :active="route().current('qr-cards.index')">
+                                    QR cards
+                                </NavLink>
+                                <NavLink v-if="$page.props.auth.user?.role === 'admin'" :href="route('home-manager.index')" :active="route().current('home-manager.index')">
+                                    Home manager
+                                </NavLink>
                             </div>
                         </div>
 
@@ -114,6 +120,12 @@ const showingNavigationDropdown = ref(false);
                     <div class="pt-2 pb-3 space-y-1">
                         <ResponsiveNavLink :href="route('home')" :active="route().current('home')">
                             Home
+                        </ResponsiveNavLink>
+                        <ResponsiveNavLink v-if="$page.props.auth.user?.role === 'admin'" :href="route('qr-cards.index')" :active="route().current('qr-cards.index')">
+                            QR cards
+                        </ResponsiveNavLink>
+                        <ResponsiveNavLink v-if="$page.props.auth.user?.role === 'admin'" :href="route('home-manager.index')" :active="route().current('home-manager.index')">
+                            Home manager
                         </ResponsiveNavLink>
                     </div>
 

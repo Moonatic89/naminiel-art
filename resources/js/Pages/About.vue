@@ -2,7 +2,7 @@
 import { Head } from '@inertiajs/vue3';
 import PublicLayout from '@/Layouts/PublicLayout.vue';
 
-const avatar = 'https://hqbmfndntgzbgprrbrhm.supabase.co/storage/v1/object/public/nav/nav_venerdi.webp';
+const avatar = '/media/home/character-lab/C&D-01.webp';
 
 const links = [
     { label: 'Solcatempo - Il Battito di Vestara', url: 'https://amzn.eu/d/1s9gbpg', color: '#f59e0b' },

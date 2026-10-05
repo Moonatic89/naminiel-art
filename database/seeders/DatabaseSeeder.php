@@ -15,6 +15,9 @@ class DatabaseSeeder extends Seeder
         $this->call(HomePolaroidCardSeeder::class);
         $this->call(HomeRoleplayCardSeeder::class);
         $this->call(HomeLuciferCardSeeder::class);
+        $this->call(HomeFanartCardSeeder::class);
+        $this->call(HomeSectionSeeder::class);
+        $this->call(QrCodeCardSeeder::class);
 
         // \App\Models\User::factory(10)->create();
 

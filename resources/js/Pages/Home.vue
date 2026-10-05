@@ -1,7 +1,7 @@
 <script setup>
 import { Head, Link } from '@inertiajs/vue3';
 import PublicLayout from '@/Layouts/PublicLayout.vue';
-import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import cyanWave from '../assets/wave/cyanWave.png';
 import redWave from '../assets/wave/redWave.png';
 import { useLocale } from '@/i18n/useLocale';
@@ -9,6 +9,18 @@ import HomeImageFrame from '@/Components/HomeImageFrame.vue';
 import { homeImagePool, selectedHomeImage } from '@/home/imagePool';
 
 const props = defineProps({
+    homeSections: {
+        type: Object,
+        default: () => ({}),
+    },
+    homeSectionImages: {
+        type: Object,
+        default: () => ({}),
+    },
+    homeTranslationOverrides: {
+        type: Object,
+        default: () => ({}),
+    },
     polaroidCards: {
         type: Array,
         default: () => [],
@@ -18,6 +30,10 @@ const props = defineProps({
         default: () => [],
     },
     luciferCards: {
+        type: Array,
+        default: () => [],
+    },
+    fanartCards: {
         type: Array,
         default: () => [],
     },
@@ -32,12 +48,16 @@ const interactionsEnabled = false;
 const introRevealed = ref(false);
 const introDone = ref(false);
 const currentState = ref('right');
+const heroSectionRef = ref(null);
 const introKey = 'naminiel_intro_shown';
 let introTimeout = null;
 let sectionObserver = null;
+let benandantiObserver = null;
 let polaroidObserver = null;
+let fanartObserver = null;
 let benandantiTimer = null;
 let polaroidTimer = null;
+let fanartTimer = null;
 
 const isMobile = ref(false);
 const waveDuration = ref('1000ms');
@@ -50,8 +70,21 @@ const wave = ref({
     transition: false,
 });
 
-const { messages } = useLocale();
-const copy = computed(() => messages.value.home);
+const { locale, messages } = useLocale();
+const copy = computed(() => {
+    const translatedHome = deepClone(messages.value.home);
+    const localeOverrides = props.homeTranslationOverrides?.[locale.value] ?? {};
+
+    Object.entries(localeOverrides).forEach(([sectionKey, override]) => {
+        if (!translatedHome.sections?.[sectionKey]) {
+            return;
+        }
+
+        translatedHome.sections[sectionKey] = mergeDeep(translatedHome.sections[sectionKey], override);
+    });
+
+    return translatedHome;
+});
 const sections = computed(() => copy.value.sections);
 const activeBenandanteIndex = ref(0);
 const benandanti = computed(() => sections.value.benandanti.items);
@@ -59,25 +92,49 @@ const activeBenandante = computed(() => benandanti.value[activeBenandanteIndex.v
 const roleplayCards = computed(() => props.roleplayCards ?? []);
 const luciferSlotCount = 4;
 const luciferCards = computed(() => limitSectionCards(props.luciferCards ?? [], luciferSlotCount));
+const fanartCards = computed(() => props.fanartCards ?? []);
 const imageModal = ref(null);
+const benandantiSection = ref(null);
 const polaroidSection = ref(null);
+const fanartSection = ref(null);
 const polaroidStartIndex = ref(0);
+const fanartStartIndex = ref(0);
 const isPolaroidSectionVisible = ref(false);
+const isBenandantiSectionVisible = ref(false);
+const isFanartSectionVisible = ref(false);
 const polaroidCards = computed(() => props.polaroidCards ?? []);
-const visiblePolaroidCards = computed(() => {
-    if (!polaroidCards.value.length) {
+const rareVariantChancePercent = 100; // Test value. Use 1 for a 1-in-100 chance.
+const visiblePolaroidCards = ref([]);
+
+function preparePolaroidAppearance(card) {
+    const isRare = Boolean(card.variant_image_path) && Math.random() * 100 < rareVariantChancePercent;
+
+    return {
+        ...card,
+        isRare,
+        displayImagePath: isRare ? card.variant_image_path : card.image_path,
+    };
+}
+
+watch(polaroidCards, (cards) => {
+    polaroidStartIndex.value = 0;
+    visiblePolaroidCards.value = cards.slice(0, 4).map(preparePolaroidAppearance);
+}, { immediate: true });
+const visibleFanartCards = computed(() => {
+    if (!fanartCards.value.length) {
         return [];
     }
 
-    return Array.from({ length: Math.min(4, polaroidCards.value.length) }, (_, offset) => {
-        const index = (polaroidStartIndex.value + offset) % polaroidCards.value.length;
+    return Array.from({ length: Math.min(4, fanartCards.value.length) }, (_, offset) => {
+        const index = (fanartStartIndex.value + offset) % fanartCards.value.length;
 
-        return polaroidCards.value[index];
+        return fanartCards.value[index];
     });
 });
 const timerPauseReasons = {
     benandanti: new Set(),
     polaroids: new Set(),
+    fanart: new Set(),
 };
 
 const gradients = {
@@ -134,7 +191,37 @@ const gradients = {
 };
 
 function homeCardImage(section, index) {
+    const selectedPath = props.homeSectionImages?.[section]?.[index];
+    if (selectedPath) {
+        return {
+            src: selectedPath,
+            alt: sections.value[section]?.items?.[index]?.[0] ?? '',
+        };
+    }
+
     return selectedHomeImage(section, index);
+}
+
+function deepClone(value) {
+    return JSON.parse(JSON.stringify(value));
+}
+
+function mergeDeep(target, source) {
+    Object.entries(source ?? {}).forEach(([key, value]) => {
+        if (value && typeof value === 'object' && !Array.isArray(value)) {
+            target[key] = mergeDeep(target[key] ?? {}, value);
+
+            return;
+        }
+
+        target[key] = value;
+    });
+
+    return target;
+}
+
+function isHomeSectionVisible(section) {
+    return props.homeSections?.[section] ?? true;
 }
 
 function polaroidCopy(card) {
@@ -158,12 +245,19 @@ function luciferCopy(card) {
     };
 }
 
+function fanartCopy(card) {
+    return sections.value.fanart.cards?.[card.translation_key] ?? {
+        title: card.slug,
+        description: '',
+    };
+}
+
 function limitSectionCards(cards, desiredCount) {
     return cards.slice(0, Math.min(cards.length, desiredCount));
 }
 
 function timerSection(section) {
-    return ['benandanti', 'polaroids'].includes(section) ? section : null;
+    return ['benandanti', 'polaroids', 'fanart'].includes(section) ? section : null;
 }
 
 function isTimerPaused(section) {
@@ -189,6 +283,10 @@ function pauseSectionTimer(section, reason = 'hover') {
     if (normalized === 'polaroids') {
         stopPolaroidCarousel();
     }
+
+    if (normalized === 'fanart') {
+        stopFanartCarousel();
+    }
 }
 
 function resumeSectionTimer(section, reason = 'hover') {
@@ -210,6 +308,10 @@ function resumeSectionTimer(section, reason = 'hover') {
 
     if (normalized === 'polaroids' && isPolaroidSectionVisible.value) {
         startPolaroidCarousel();
+    }
+
+    if (normalized === 'fanart' && isFanartSectionVisible.value) {
+        startFanartCarousel();
     }
 }
 
@@ -273,11 +375,38 @@ function resetImageTilt(event) {
     event.currentTarget.style.setProperty('--tilt-y', '0deg');
 }
 
+function handleHeroPointerMove(event) {
+    if (isMobile.value || !heroSectionRef.value) {
+        return;
+    }
+    const rect = heroSectionRef.value.getBoundingClientRect();
+    const x = Math.round(event.clientX - rect.left);
+    const y = Math.round(event.clientY - rect.top);
+    heroSectionRef.value.style.setProperty('--hero-mouse-x', `${x}px`);
+    heroSectionRef.value.style.setProperty('--hero-mouse-y', `${y}px`);
+    heroSectionRef.value.style.setProperty('--hero-glow-opacity', '1');
+}
+
+function handleHeroPointerLeave() {
+    if (!heroSectionRef.value) {
+        return;
+    }
+    heroSectionRef.value.style.setProperty('--hero-glow-opacity', '0');
+}
+
+function onWindowPointerLeave() {
+    if (!heroSectionRef.value) {
+        return;
+    }
+    heroSectionRef.value.style.setProperty('--hero-glow-opacity', '0');
+}
+
 function updateViewport() {
     const width = window.innerWidth;
     isMobile.value = width < 768;
     waveDistance.value = width * 1.55;
     waveDuration.value = `${Math.max(700, waveDistance.value / 2.5)}ms`;
+    updateBenandantiScrollButtons();
 }
 
 function finishIntro() {
@@ -325,6 +454,7 @@ function initSectionAnimations() {
     if (!('IntersectionObserver' in window)) {
         document.querySelectorAll('.section-stage').forEach((section) => {
             section.classList.add('is-visible');
+            section.classList.add('is-in-viewport');
         });
         return;
     }
@@ -332,12 +462,11 @@ function initSectionAnimations() {
     sectionObserver = new IntersectionObserver(
         (entries) => {
             entries.forEach((entry) => {
-                if (!entry.isIntersecting) {
-                    return;
-                }
+                entry.target.classList.toggle('is-in-viewport', entry.isIntersecting && !document.hidden);
 
-                entry.target.classList.add('is-visible');
-                sectionObserver.unobserve(entry.target);
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('is-visible');
+                }
             });
         },
         {
@@ -351,6 +480,74 @@ function initSectionAnimations() {
     });
 }
 
+const benandantiTrackRef = ref(null);
+const canScrollBenandantiLeft = ref(false);
+const canScrollBenandantiRight = ref(true);
+
+function updateBenandantiScrollButtons() {
+    if (!benandantiTrackRef.value) return;
+    const { scrollLeft, scrollWidth, clientWidth } = benandantiTrackRef.value;
+    canScrollBenandantiLeft.value = scrollLeft > 6;
+    canScrollBenandantiRight.value = scrollLeft < scrollWidth - clientWidth - 6;
+}
+
+function scrollBenandantiTrack(direction) {
+    if (!benandantiTrackRef.value) return;
+    const amount = Math.max(240, benandantiTrackRef.value.clientWidth * 0.65);
+    benandantiTrackRef.value.scrollBy({
+        left: direction === 'left' ? -amount : amount,
+        behavior: 'smooth',
+    });
+    setTimeout(updateBenandantiScrollButtons, 350);
+}
+
+let isTrackDragging = false;
+let trackStartX = 0;
+let trackScrollLeftStart = 0;
+let hasTrackMoved = false;
+
+function onTrackPointerDown(event) {
+    if (event.pointerType !== 'mouse' || event.button !== 0 || !benandantiTrackRef.value) return;
+    pauseSectionTimer('benandanti', 'drag');
+    isTrackDragging = true;
+    hasTrackMoved = false;
+    trackStartX = event.pageX - benandantiTrackRef.value.offsetLeft;
+    trackScrollLeftStart = benandantiTrackRef.value.scrollLeft;
+
+    window.addEventListener('pointermove', onTrackPointerMove);
+    window.addEventListener('pointerup', onTrackPointerUp);
+    window.addEventListener('pointercancel', onTrackPointerUp);
+}
+
+function onTrackPointerMove(event) {
+    if (!isTrackDragging || !benandantiTrackRef.value) return;
+    const x = event.pageX - benandantiTrackRef.value.offsetLeft;
+    const walk = x - trackStartX;
+    if (Math.abs(walk) > 6) {
+        hasTrackMoved = true;
+    }
+    benandantiTrackRef.value.scrollLeft = trackScrollLeftStart - walk;
+    updateBenandantiScrollButtons();
+}
+
+function onTrackPointerUp() {
+    if (!isTrackDragging) return;
+    isTrackDragging = false;
+    window.removeEventListener('pointermove', onTrackPointerMove);
+    window.removeEventListener('pointerup', onTrackPointerUp);
+    window.removeEventListener('pointercancel', onTrackPointerUp);
+    resumeSectionTimer('benandanti', 'drag');
+    setTimeout(() => {
+        hasTrackMoved = false;
+    }, 60);
+}
+
+function onBenandanteThumbClick(index) {
+    if (hasTrackMoved) return;
+    selectBenandante(index);
+    startBenandantiCarousel();
+}
+
 function selectBenandante(index) {
     activeBenandanteIndex.value = index;
 }
@@ -360,12 +557,33 @@ function advanceBenandante() {
 }
 
 function startBenandantiCarousel() {
-    if (isTimerPaused('benandanti')) {
+    if (benandantiTimer || !isBenandantiSectionVisible.value || document.hidden || isTimerPaused('benandanti')) {
         return;
     }
 
-    clearInterval(benandantiTimer);
     benandantiTimer = setInterval(advanceBenandante, 6200);
+}
+
+function initBenandantiViewport() {
+    if (!benandantiSection.value) return;
+
+    if (!('IntersectionObserver' in window)) {
+        isBenandantiSectionVisible.value = true;
+        startBenandantiCarousel();
+        return;
+    }
+
+    benandantiObserver = new IntersectionObserver(([entry]) => {
+        isBenandantiSectionVisible.value = entry.isIntersecting;
+        if (entry.isIntersecting) {
+            startBenandantiCarousel();
+        } else {
+            clearInterval(benandantiTimer);
+            benandantiTimer = null;
+        }
+    }, { threshold: 0.1 });
+
+    benandantiObserver.observe(benandantiSection.value);
 }
 
 function advancePolaroidCarousel() {
@@ -374,19 +592,45 @@ function advancePolaroidCarousel() {
     }
 
     polaroidStartIndex.value = (polaroidStartIndex.value + 1) % polaroidCards.value.length;
+    const enteringIndex = (polaroidStartIndex.value + 3) % polaroidCards.value.length;
+    visiblePolaroidCards.value = [
+        ...visiblePolaroidCards.value.slice(1),
+        preparePolaroidAppearance(polaroidCards.value[enteringIndex]),
+    ];
 }
 
 function startPolaroidCarousel() {
-    if (polaroidTimer || polaroidCards.value.length <= 4 || isTimerPaused('polaroids')) {
+    if (polaroidTimer || document.hidden || polaroidCards.value.length <= 4 || isTimerPaused('polaroids')) {
         return;
     }
 
-    polaroidTimer = setInterval(advancePolaroidCarousel, 12000);
+    polaroidTimer = setInterval(advancePolaroidCarousel, 3000);
 }
 
 function stopPolaroidCarousel() {
     clearInterval(polaroidTimer);
     polaroidTimer = null;
+}
+
+function advanceFanartCarousel() {
+    if (fanartCards.value.length <= 4) {
+        return;
+    }
+
+    fanartStartIndex.value = (fanartStartIndex.value + 1) % fanartCards.value.length;
+}
+
+function startFanartCarousel() {
+    if (fanartTimer || document.hidden || fanartCards.value.length <= 4 || isTimerPaused('fanart')) {
+        return;
+    }
+
+    fanartTimer = setInterval(advanceFanartCarousel, 12000);
+}
+
+function stopFanartCarousel() {
+    clearInterval(fanartTimer);
+    fanartTimer = null;
 }
 
 function initPolaroidViewport() {
@@ -419,6 +663,57 @@ function initPolaroidViewport() {
     polaroidObserver.observe(polaroidSection.value);
 }
 
+function initFanartViewport() {
+    if (!fanartSection.value) {
+        return;
+    }
+
+    if (!('IntersectionObserver' in window)) {
+        isFanartSectionVisible.value = true;
+        startFanartCarousel();
+
+        return;
+    }
+
+    fanartObserver = new IntersectionObserver(
+        ([entry]) => {
+            isFanartSectionVisible.value = entry.isIntersecting;
+
+            if (entry.isIntersecting) {
+                startFanartCarousel();
+            } else {
+                stopFanartCarousel();
+            }
+        },
+        {
+            threshold: 0.28,
+        },
+    );
+
+    fanartObserver.observe(fanartSection.value);
+}
+
+function onPageVisibilityChange() {
+    if (document.hidden) {
+        clearInterval(benandantiTimer);
+        benandantiTimer = null;
+        stopPolaroidCarousel();
+        stopFanartCarousel();
+        document.querySelectorAll('.section-stage.is-in-viewport').forEach((section) => {
+            section.classList.remove('is-in-viewport');
+        });
+        return;
+    }
+
+    startBenandantiCarousel();
+    if (isPolaroidSectionVisible.value) startPolaroidCarousel();
+    if (isFanartSectionVisible.value) startFanartCarousel();
+    document.querySelectorAll('.section-stage.is-visible').forEach((section) => {
+        const rect = section.getBoundingClientRect();
+        section.classList.toggle('is-in-viewport', rect.bottom > 0 && rect.top < window.innerHeight);
+    });
+}
+
 onMounted(() => {
     updateViewport();
 
@@ -431,24 +726,36 @@ onMounted(() => {
     }
 
     window.addEventListener('resize', updateViewport);
+    window.addEventListener('pointerleave', onWindowPointerLeave);
+    document.addEventListener('visibilitychange', onPageVisibilityChange);
 
     nextTick(() => {
         initSectionAnimations();
+        initBenandantiViewport();
         initPolaroidViewport();
+        initFanartViewport();
+        updateBenandantiScrollButtons();
     });
 
-    startBenandantiCarousel();
 });
 
 onBeforeUnmount(() => {
     clearTimeout(introTimeout);
     clearInterval(benandantiTimer);
     stopPolaroidCarousel();
+    stopFanartCarousel();
     document.body.style.overflow = '';
     window.removeEventListener('keydown', handleModalKeydown);
     window.removeEventListener('resize', updateViewport);
+    window.removeEventListener('pointerleave', onWindowPointerLeave);
+    document.removeEventListener('visibilitychange', onPageVisibilityChange);
+    window.removeEventListener('pointermove', onTrackPointerMove);
+    window.removeEventListener('pointerup', onTrackPointerUp);
+    window.removeEventListener('pointercancel', onTrackPointerUp);
     sectionObserver?.disconnect();
+    benandantiObserver?.disconnect();
     polaroidObserver?.disconnect();
+    fanartObserver?.disconnect();
 });
 </script>
 
@@ -485,9 +792,12 @@ onBeforeUnmount(() => {
             </section>
 
             <section
+                ref="heroSectionRef"
                 v-show="introDone"
-                class="relative h-screen w-full overflow-hidden transition-colors duration-500"
+                class="hero-section relative h-screen w-full overflow-hidden transition-colors duration-500"
                 :class="currentState === 'left' ? 'bg-[#5bc6d8]' : 'bg-[#ff547e]'"
+                @pointermove="handleHeroPointerMove"
+                @pointerleave="handleHeroPointerLeave"
             >
                 <div class="absolute inset-0 z-10 flex flex-col justify-between overflow-hidden md:flex-row">
                     <button
@@ -580,35 +890,33 @@ onBeforeUnmount(() => {
 
                 <div class="pointer-events-none absolute inset-0 top-[56px] z-30 flex flex-col items-center justify-between px-4 pb-8 md:top-36 md:flex-row md:items-start md:px-8 md:pb-0">
                     <div class="pointer-events-auto flex w-[28%] cursor-default flex-col items-center gap-2 animate-slide-in-left md:w-1/4 xl:w-1/3">
-                        <Link
-                            :href="route('art.og')"
-                            aria-disabled="true"
-                            tabindex="-1"
-                            class="image-tilt-surface flex cursor-zoom-in flex-col items-center gap-1"
-                            @click.prevent="openImageModal(modalImage(originalImage, copy.hero.original))"
+                        <button
+                            type="button"
+                            :aria-label="copy.hero.original"
+                            class="hero-character-button image-tilt-surface flex cursor-zoom-in flex-col items-center gap-1"
+                            @click="openImageModal(modalImage(originalImage, copy.hero.original))"
                             @pointermove="updateImageTilt"
                             @pointerleave="resetImageTilt"
                         >
                             <img :src="originalImage" :alt="copy.hero.original" class="image-tilt-media h-auto w-full drop-shadow-lg" />
                             <span class="text-xs font-bold uppercase tracking-widest text-white/0 drop-shadow-md">{{ copy.hero.original }}</span>
-                        </Link>
+                        </button>
                     </div>
 
                     <div class="hidden flex-1 md:block" />
 
                     <div class="pointer-events-auto flex w-[28%] cursor-default flex-col items-center gap-2 animate-slide-in-right md:w-1/4 xl:w-1/3">
-                        <Link
-                            :href="route('art.fa')"
-                            aria-disabled="true"
-                            tabindex="-1"
-                            class="image-tilt-surface flex cursor-zoom-in flex-col items-center gap-1"
-                            @click.prevent="openImageModal(modalImage(fanArtImage, copy.hero.fanArt))"
+                        <button
+                            type="button"
+                            :aria-label="copy.hero.fanArt"
+                            class="hero-character-button image-tilt-surface flex cursor-zoom-in flex-col items-center gap-1"
+                            @click="openImageModal(modalImage(fanArtImage, copy.hero.fanArt))"
                             @pointermove="updateImageTilt"
                             @pointerleave="resetImageTilt"
                         >
                             <img :src="fanArtImage" :alt="copy.hero.fanArt" class="image-tilt-media h-auto w-full drop-shadow-lg" />
                             <span class="text-xs font-bold uppercase tracking-widest text-white/0 drop-shadow-md">{{ copy.hero.fanArt }}</span>
-                        </Link>
+                        </button>
                     </div>
                 </div>
 
@@ -616,9 +924,11 @@ onBeforeUnmount(() => {
                     <span class="w-[28%] text-center text-[10px] font-bold uppercase tracking-widest text-white/80 drop-shadow">{{ copy.hero.original }}</span>
                     <span class="w-[28%] text-center text-[10px] font-bold uppercase tracking-widest text-white/80 drop-shadow">{{ copy.hero.fanArt }}</span>
                 </div>
+
+                <div class="hero-viewport-glow" aria-hidden="true" />
             </section>
 
-            <section class="project-section section-stage solcatempo-dawn overflow-hidden text-[#f6fbff]">
+            <section v-if="isHomeSectionVisible('solcatempoDawn')" class="project-section section-stage solcatempo-dawn overflow-hidden text-[#f6fbff]">
                 <div class="absolute inset-0 opacity-30 [background-image:linear-gradient(90deg,rgba(255,255,255,.18)_1px,transparent_1px),linear-gradient(rgba(255,255,255,.14)_1px,transparent_1px)] [background-size:52px_52px]" />
                 <div class="constellation-field" aria-hidden="true">
                     <span class="constellation constellation-a" />
@@ -647,7 +957,7 @@ onBeforeUnmount(() => {
                 </div>
             </section>
 
-            <section class="project-section section-stage bg-[#f5f0e8] text-[#183466]">
+            <section v-if="isHomeSectionVisible('vestara')" class="project-section section-stage bg-[#f5f0e8] text-[#183466]">
                 <div class="absolute inset-0 bg-[radial-gradient(circle_at_50%_35%,rgba(247,169,55,.35),transparent_28%),radial-gradient(circle_at_75%_25%,rgba(71,168,185,.25),transparent_24%)]" />
                 <div class="project-shell relative z-10 flex flex-col items-center justify-center text-center">
                     <p class="section-kicker text-[#183466]/60">{{ sections.vestara.kicker }}</p>
@@ -661,7 +971,7 @@ onBeforeUnmount(() => {
                 </div>
             </section>
 
-            <section class="project-section section-stage bg-[#07110b] text-[#f4f0dd]">
+            <section v-if="isHomeSectionVisible('benandanti')" ref="benandantiSection" class="project-section section-stage bg-[#07110b] text-[#f4f0dd]">
                 <div class="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(61,107,67,.45),transparent_28%),radial-gradient(circle_at_80%_25%,rgba(178,140,68,.2),transparent_26%),linear-gradient(180deg,#07110b,#020403)]" />
                 <div class="project-shell relative z-10">
                     <div class="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
@@ -693,33 +1003,68 @@ onBeforeUnmount(() => {
                             </div>
                         </div>
 
-                        <div class="benandanti-track" :aria-label="sections.benandanti.trackLabel">
+                        <div class="benandanti-track-wrapper relative">
                             <button
-                                v-for="(item, index) in benandanti"
-                                :key="item.name"
                                 type="button"
-                                class="benandanti-thumb"
-                                :class="{ 'is-active': index === activeBenandanteIndex }"
-                                @click="selectBenandante(index); startBenandantiCarousel()"
+                                class="benandanti-nav-button benandanti-nav-prev"
+                                :class="{ 'opacity-0 pointer-events-none': !canScrollBenandantiLeft }"
+                                :disabled="!canScrollBenandantiLeft"
+                                @click="scrollBenandantiTrack('left')"
+                                aria-label="Precedente"
                             >
-                                <img
-                                    :src="item.image"
-                                    :alt="item.name"
-                                    class="image-tilt-media cursor-zoom-in"
-                                    @click.stop="openImageModal(modalImage(item.image, item.name, 'benandanti'))"
-                                    @pointerenter.stop="pauseSectionTimer('benandanti')"
-                                    @pointermove.stop="updateImageTilt"
-                                    @pointerleave.stop="(event) => { resetImageTilt(event); resumeSectionTimer('benandanti'); }"
-                                />
-                                <span>{{ item.name }}</span>
-                                <small>{{ item.short }}</small>
+                                <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7" />
+                                </svg>
+                            </button>
+
+                            <div
+                                ref="benandantiTrackRef"
+                                class="benandanti-track"
+                                :aria-label="sections.benandanti.trackLabel"
+                                @scroll.passive="updateBenandantiScrollButtons"
+                                @pointerdown="onTrackPointerDown"
+                                @pointerenter="pauseSectionTimer('benandanti', 'track')"
+                                @pointerleave="resumeSectionTimer('benandanti', 'track')"
+                            >
+                                <button
+                                    v-for="(item, index) in benandanti"
+                                    :key="item.name"
+                                    type="button"
+                                    class="benandanti-thumb"
+                                    :class="{ 'is-active': index === activeBenandanteIndex }"
+                                    @click="onBenandanteThumbClick(index)"
+                                >
+                                    <img
+                                        :src="item.image"
+                                        :alt="item.name"
+                                        class="image-tilt-media"
+                                        @pointerenter.stop="pauseSectionTimer('benandanti')"
+                                        @pointermove.stop="updateImageTilt"
+                                        @pointerleave.stop="(event) => { resetImageTilt(event); resumeSectionTimer('benandanti'); }"
+                                    />
+                                    <span>{{ item.name }}</span>
+                                    <small>{{ item.short }}</small>
+                                </button>
+                            </div>
+
+                            <button
+                                type="button"
+                                class="benandanti-nav-button benandanti-nav-next"
+                                :class="{ 'opacity-0 pointer-events-none': !canScrollBenandantiRight }"
+                                :disabled="!canScrollBenandantiRight"
+                                @click="scrollBenandantiTrack('right')"
+                                aria-label="Successivo"
+                            >
+                                <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7" />
+                                </svg>
                             </button>
                         </div>
                     </div>
                 </div>
             </section>
 
-            <section ref="polaroidSection" class="project-section section-stage bg-[#f6ecd9] text-[#36251d]">
+            <section v-if="isHomeSectionVisible('polaroids')" ref="polaroidSection" class="project-section section-stage bg-[#f6ecd9] text-[#36251d]">
                 <div class="project-shell relative z-10">
                     <div class="mx-auto max-w-4xl text-center">
                         <p class="section-kicker text-[#8a6751]">{{ sections.polaroids.kicker }}</p>
@@ -736,26 +1081,24 @@ onBeforeUnmount(() => {
                             v-for="(card, index) in visiblePolaroidCards"
                             :key="card.slug"
                             class="travel-polaroid"
-                            :class="{ 'is-chromatic': card.isChromatic }"
+                            :class="{ 'is-rare': card.isRare }"
                             :style="{ '--tilt': `${index % 2 ? 2.2 : -2.2}deg`, '--delay': `${index * 90}ms` }"
                         >
                             <button
                                 type="button"
                                 class="travel-polaroid-visual image-tilt-surface"
-                                @click="openImageModal(modalImage(card.image_path, polaroidCopy(card).title, 'polaroids'))"
+                                @click="openImageModal(modalImage(card.displayImagePath, polaroidCopy(card).title, 'polaroids'))"
                                 @pointerenter="pauseSectionTimer('polaroids')"
                                 @pointermove="updateImageTilt"
                                 @pointerleave="(event) => { resetImageTilt(event); resumeSectionTimer('polaroids'); }"
                                 @focus="pauseSectionTimer('polaroids', 'focus')"
                                 @blur="resumeSectionTimer('polaroids', 'focus')"
                             >
-                                <img :src="card.image_path" :alt="polaroidCopy(card).title" loading="lazy" class="image-tilt-media" />
-                                <!-- TODO: enhance chromatic experience -->
-                                <div v-if="card.isChromatic" class="chromatic-overlay" aria-hidden="true">
-                                    <span>{{ sections.polaroids.chromaticBadge }}</span>
-                                </div>
+                                <img :src="card.displayImagePath" :alt="polaroidCopy(card).title" loading="lazy" class="image-tilt-media" />
+                                <div v-if="card.isRare" class="chromatic-overlay" aria-hidden="true" />
                             </button>
                             <div class="travel-polaroid-copy">
+                                <span v-if="card.isRare" class="travel-polaroid-rare-badge">✦ {{ sections.polaroids.chromaticBadge }}</span>
                                 <h3>{{ polaroidCopy(card).title }}</h3>
                                 <p>{{ polaroidCopy(card).description }}</p>
                             </div>
@@ -764,7 +1107,7 @@ onBeforeUnmount(() => {
                 </div>
             </section>
 
-            <section class="project-section section-stage bg-[#26113f] text-white">
+            <section v-if="isHomeSectionVisible('magicalGirls')" class="project-section section-stage bg-[#26113f] text-white">
                 <div class="absolute inset-0 bg-[radial-gradient(circle_at_12%_18%,rgba(250,204,21,.45),transparent_18%),radial-gradient(circle_at_88%_25%,rgba(236,72,153,.36),transparent_22%),linear-gradient(145deg,#26113f,#6d28d9_48%,#f9a8d4)]" />
                 <div class="project-shell relative z-10">
                     <div class="flex flex-wrap items-center justify-between gap-8">
@@ -797,7 +1140,7 @@ onBeforeUnmount(() => {
                 </div>
             </section>
 
-            <section class="project-section section-stage bg-[#120f0b] text-[#f5ead9]">
+            <section v-if="isHomeSectionVisible('roleplay')" class="project-section section-stage bg-[#120f0b] text-[#f5ead9]">
                 <div class="absolute inset-0 bg-[radial-gradient(circle_at_14%_18%,rgba(180,83,9,.28),transparent_22%),radial-gradient(circle_at_82%_12%,rgba(45,212,191,.16),transparent_20%),radial-gradient(circle_at_70%_88%,rgba(147,51,234,.18),transparent_24%),linear-gradient(145deg,#120f0b,#23140e_45%,#111827)]" />
                 <div class="dragon-grid-lines absolute inset-0" aria-hidden="true" />
                 <div class="project-shell relative z-10">
@@ -835,7 +1178,7 @@ onBeforeUnmount(() => {
                 </div>
             </section>
 
-            <section class="project-section section-stage bg-[#050505] text-[#e7dfd8]">
+            <section v-if="isHomeSectionVisible('lucifer')" class="project-section section-stage bg-[#050505] text-[#e7dfd8]">
                 <div class="absolute inset-0 bg-[radial-gradient(circle_at_20%_70%,rgba(127,29,29,.5),transparent_28%),linear-gradient(180deg,#050505,#171717_45%,#2b0707)]" />
                 <div class="absolute inset-x-0 top-0 h-24 bg-[repeating-linear-gradient(90deg,rgba(255,255,255,.08)_0_1px,transparent_1px_12px)] opacity-40" />
                 <div class="project-shell relative z-10">
@@ -870,7 +1213,7 @@ onBeforeUnmount(() => {
                 </div>
             </section>
 
-            <section class="project-section section-stage bg-[#fff3c7] text-[#5c2f2b]">
+            <section v-if="isHomeSectionVisible('pamsticceria')" class="project-section section-stage bg-[#fff3c7] text-[#5c2f2b]">
                 <div class="absolute inset-0 bg-[radial-gradient(circle_at_15%_20%,rgba(244,114,182,.42),transparent_20%),radial-gradient(circle_at_85%_18%,rgba(45,212,191,.32),transparent_24%),linear-gradient(140deg,#fff3c7,#ffc4d6_52%,#a7f3d0)]" />
                 <div class="project-shell relative z-10">
                     <div class="text-center">
@@ -894,7 +1237,7 @@ onBeforeUnmount(() => {
                 </div>
             </section>
 
-            <section class="project-section section-stage bg-[#e8edf2] text-[#151a22]">
+            <section v-if="isHomeSectionVisible('characterLab')" class="project-section section-stage bg-[#e8edf2] text-[#151a22]">
                 <div class="project-shell relative z-10">
                     <div class="grid gap-10 lg:grid-cols-[.8fr_1.2fr] lg:items-center">
                         <div>
@@ -920,7 +1263,7 @@ onBeforeUnmount(() => {
                 </div>
             </section>
 
-            <section class="project-section section-stage bg-[#111827] text-white">
+            <section v-if="isHomeSectionVisible('oc')" class="project-section section-stage bg-[#111827] text-white">
                 <div class="project-shell relative z-10 grid gap-10 lg:grid-cols-2 lg:items-center">
                     <div>
                         <p class="section-kicker text-white/55">{{ sections.oc.kicker }}</p>
@@ -944,27 +1287,47 @@ onBeforeUnmount(() => {
                 </div>
             </section>
 
-            <section class="project-section section-stage bg-[#f7f4ef] text-[#111827]">
-                <div class="project-shell relative z-10 grid gap-10 lg:grid-cols-2 lg:items-center">
-                    <div class="order-2 grid gap-5 sm:grid-cols-2 lg:order-1">
-                        <article v-for="(item, index) in sections.fanart.items" :key="item[0]" class="mirror-card motion-safe:animate-rise-in" :style="{ animationDelay: `${index * 100}ms` }">
-                            <HomeImageFrame
-                                :image="homeCardImage('fanart', index)"
-                                :gradient-class="gradients.fanart[index]"
-                                frame-class="h-52 rounded-[1.25rem]"
-                                @open-image="openImageModal"
-                                @pause-timer="pauseSectionTimer"
-                                @resume-timer="resumeSectionTimer"
-                            />
-                            <h3 class="mt-5 text-2xl font-black">{{ item[0] }}</h3>
-                            <p class="mt-3 leading-7 text-[#4b5563]">{{ item[1] }}</p>
-                        </article>
+            <section v-if="isHomeSectionVisible('fanart')" ref="fanartSection" class="project-section section-stage fanart-section text-[#17120f]">
+                <div class="absolute inset-0 bg-[linear-gradient(90deg,rgba(23,18,15,.08)_1px,transparent_1px),linear-gradient(rgba(23,18,15,.06)_1px,transparent_1px)] [background-size:34px_34px]" />
+                <div class="project-shell relative z-10">
+                    <div class="fanart-header">
+                        <p class="section-kicker text-[#8b5d45]">{{ sections.fanart.kicker }}</p>
+                        <h2>{{ sections.fanart.title }}</h2>
+                        <p>{{ sections.fanart.body }}</p>
                     </div>
-                    <div class="order-1 text-right lg:order-2">
-                        <p class="section-kicker text-[#6b7280]">{{ sections.fanart.kicker }}</p>
-                        <h2 class="mt-4 text-[clamp(4rem,10vw,9rem)] font-black uppercase leading-none">{{ sections.fanart.title }}</h2>
-                        <p class="ml-auto mt-6 max-w-xl text-xl leading-8 text-[#4b5563]">{{ sections.fanart.body }}</p>
-                    </div>
+
+                    <TransitionGroup
+                        name="fanart-shift"
+                        tag="div"
+                        class="fanart-showcase mt-12"
+                        :class="{ 'is-running': isFanartSectionVisible }"
+                    >
+                            <article
+                                v-for="(card, index) in visibleFanartCards"
+                                :key="card.slug"
+                                class="fanart-print"
+                                :class="{ 'is-featured': index === 0 }"
+                                :style="{ '--fanart-delay': `${index * 90}ms`, '--fanart-tilt': `${index % 2 ? 1.4 : -1.4}deg` }"
+                            >
+                                <button
+                                    type="button"
+                                    class="fanart-print-frame image-tilt-surface"
+                                    @click="openImageModal(modalImage(card.image_path, fanartCopy(card).title, 'fanart'))"
+                                    @pointerenter="pauseSectionTimer('fanart')"
+                                    @pointermove="updateImageTilt"
+                                    @pointerleave="(event) => { resetImageTilt(event); resumeSectionTimer('fanart'); }"
+                                    @focus="pauseSectionTimer('fanart', 'focus')"
+                                    @blur="resumeSectionTimer('fanart', 'focus')"
+                                >
+                                    <img :src="card.image_path" :alt="fanartCopy(card).title" loading="lazy" class="image-tilt-media" />
+                                </button>
+                                <div class="fanart-print-copy">
+                                    <span>{{ String(index + 1).padStart(2, '0') }}</span>
+                                    <h3>{{ fanartCopy(card).title }}</h3>
+                                    <p>{{ fanartCopy(card).description }}</p>
+                                </div>
+                            </article>
+                    </TransitionGroup>
                 </div>
             </section>
 
@@ -1121,6 +1484,18 @@ onBeforeUnmount(() => {
     }
 }
 
+@keyframes rareImageFloat {
+    0%,
+    100% {
+        translate: 0 0;
+        filter: drop-shadow(0 22px 24px rgba(55, 33, 22, 0.22)) saturate(1.08);
+    }
+    50% {
+        translate: 0 -7px;
+        filter: drop-shadow(0 28px 30px rgba(132, 74, 31, 0.38)) saturate(1.28);
+    }
+}
+
 .animate-slide-in-left {
     animation: slideInLeft 2s cubic-bezier(0.77, 0, 0.175, 1) forwards;
 }
@@ -1161,6 +1536,15 @@ onBeforeUnmount(() => {
 
 .section-stage {
     overflow: hidden;
+}
+
+.section-stage:not(.is-in-viewport),
+.section-stage:not(.is-in-viewport) *,
+.section-stage:not(.is-in-viewport)::before,
+.section-stage:not(.is-in-viewport)::after,
+.section-stage:not(.is-in-viewport) *::before,
+.section-stage:not(.is-in-viewport) *::after {
+    animation-play-state: paused !important;
 }
 
 .section-stage::after {
@@ -1222,6 +1606,34 @@ onBeforeUnmount(() => {
 .image-tilt-surface:hover::after,
 .image-tilt-surface:focus-visible::after {
     opacity: 1;
+}
+
+.hero-character-button::after {
+    display: none !important;
+}
+
+.hero-viewport-glow {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 45;
+    background: radial-gradient(
+        650px circle at var(--hero-mouse-x, -1000px) var(--hero-mouse-y, -1000px),
+        rgba(255, 255, 255, 0.28) 0%,
+        rgba(255, 255, 255, 0.12) 35%,
+        rgba(255, 255, 255, 0.03) 60%,
+        transparent 75%
+    );
+    mix-blend-mode: screen;
+    opacity: var(--hero-glow-opacity, 0);
+    transition: opacity 250ms ease;
+    will-change: background, opacity;
+}
+
+@media (hover: none), (pointer: coarse) {
+    .hero-viewport-glow {
+        display: none !important;
+    }
 }
 
 .image-modal {
@@ -1526,13 +1938,19 @@ onBeforeUnmount(() => {
 
 .benandanti-carousel {
     display: grid;
+    grid-template-columns: minmax(0, 1fr);
     gap: 1.25rem;
+    min-width: 0;
+    max-width: 100%;
 }
 
 .benandanti-spotlight {
     display: grid;
+    grid-template-columns: minmax(0, 1fr);
     gap: clamp(1.5rem, 4vw, 3.5rem);
     align-items: center;
+    min-width: 0;
+    width: 100%;
     min-height: 520px;
     overflow: hidden;
     padding: clamp(1rem, 2.8vw, 2rem);
@@ -1548,6 +1966,7 @@ onBeforeUnmount(() => {
 .benandanti-portrait {
     position: relative;
     display: grid;
+    min-width: 0;
     min-height: min(62vh, 560px);
     place-items: center;
     overflow: hidden;
@@ -1572,11 +1991,13 @@ onBeforeUnmount(() => {
     max-width: 100%;
     margin-top: 0.65rem;
     font-family: Georgia, serif;
-    font-size: clamp(2.7rem, 6vw, 5.8rem);
+    font-size: clamp(1.85rem, 3.6vw, 3.8rem);
     font-weight: 900;
-    line-height: 0.88;
+    line-height: 0.95;
     text-transform: uppercase;
-    overflow-wrap: anywhere;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .benandanti-copy {
@@ -1591,16 +2012,105 @@ onBeforeUnmount(() => {
     line-height: 1.65;
 }
 
+.benandanti-track-wrapper {
+    position: relative;
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+}
+
 .benandanti-track {
     display: flex;
     gap: 0.75rem;
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
     overflow-x: auto;
-    padding: 0.25rem 0 0.8rem;
-    scrollbar-width: none;
+    padding: 0.35rem 0.25rem 0.8rem;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(214, 197, 127, 0.35) transparent;
+    scroll-behavior: smooth;
+    user-select: none;
+    cursor: grab;
+    -webkit-overflow-scrolling: touch;
+}
+
+.benandanti-track:active {
+    cursor: grabbing;
 }
 
 .benandanti-track::-webkit-scrollbar {
-    display: none;
+    height: 4px;
+}
+
+.benandanti-track::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.benandanti-track::-webkit-scrollbar-thumb {
+    background: rgba(214, 197, 127, 0.28);
+    border-radius: 9999px;
+}
+
+.benandanti-track::-webkit-scrollbar-thumb:hover {
+    background: rgba(214, 197, 127, 0.55);
+}
+
+.benandanti-nav-button {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 25;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.75rem;
+    height: 2.75rem;
+    border-radius: 9999px;
+    border: 1px solid rgba(214, 197, 127, 0.4);
+    background: rgba(7, 17, 11, 0.92);
+    backdrop-filter: blur(14px);
+    color: #f4f0dd;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.65), 0 0 12px rgba(214, 197, 127, 0.15);
+    transition:
+        opacity 240ms ease,
+        transform 200ms ease,
+        background-color 200ms ease,
+        border-color 200ms ease;
+    cursor: pointer;
+}
+
+.benandanti-nav-button:hover:not(:disabled) {
+    background: rgba(214, 197, 127, 0.22);
+    border-color: rgba(214, 197, 127, 0.8);
+    color: #ffffff;
+    transform: translateY(-50%) scale(1.1);
+    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.75), 0 0 20px rgba(214, 197, 127, 0.3);
+}
+
+.benandanti-nav-button:active:not(:disabled) {
+    transform: translateY(-50%) scale(0.96);
+}
+
+.benandanti-nav-prev {
+    left: -1rem;
+}
+
+.benandanti-nav-next {
+    right: -1rem;
+}
+
+@media (max-width: 640px) {
+    .benandanti-nav-prev {
+        left: 0.15rem;
+    }
+    .benandanti-nav-next {
+        right: 0.15rem;
+    }
+    .benandanti-nav-button {
+        width: 2.35rem;
+        height: 2.35rem;
+    }
 }
 
 .benandanti-thumb {
@@ -1746,16 +2256,19 @@ onBeforeUnmount(() => {
     filter: drop-shadow(0 22px 24px rgba(55, 33, 22, 0.22));
 }
 
-.travel-polaroid.is-chromatic {
+.travel-polaroid.is-rare {
     z-index: 1;
+    border-color: rgba(190, 129, 42, 0.72);
+    background: linear-gradient(125deg, #fff8dc, #fffdf3 54%, #fce9b7);
+    box-shadow: 0 18px 46px rgba(123, 76, 25, 0.22), inset 0 0 0 2px rgba(255, 229, 148, 0.65);
 }
 
-.travel-polaroid.is-chromatic .travel-polaroid-visual {
+.travel-polaroid.is-rare .travel-polaroid-visual {
     border-radius: 0.4rem;
     filter: drop-shadow(0 22px 34px rgba(40, 112, 116, 0.28));
 }
 
-.travel-polaroid.is-chromatic .travel-polaroid-visual::before {
+.travel-polaroid.is-rare .travel-polaroid-visual::before {
     position: absolute;
     inset: 2.5% 3.5%;
     z-index: 2;
@@ -1769,7 +2282,7 @@ onBeforeUnmount(() => {
     mix-blend-mode: screen;
 }
 
-.travel-polaroid.is-chromatic .travel-polaroid-visual::after {
+.travel-polaroid.is-rare .travel-polaroid-visual::after {
     position: absolute;
     inset: -18% auto -18% -34%;
     z-index: 3;
@@ -1793,21 +2306,20 @@ onBeforeUnmount(() => {
     mix-blend-mode: screen;
 }
 
-.chromatic-overlay span {
-    position: absolute;
-    right: 9%;
-    top: 7%;
-    padding: 0.45rem 0.62rem;
-    border: 1px solid rgba(255, 255, 255, 0.68);
-    background: rgba(26, 35, 42, 0.72);
-    color: #fff8d8;
+.travel-polaroid-rare-badge {
+    display: inline-block;
+    margin-bottom: 0.7rem;
+    padding: 0.45rem 0.7rem;
+    border: 1px solid rgba(144, 82, 18, 0.5);
+    border-radius: 999px;
+    background: linear-gradient(110deg, #533010, #9e631c);
+    color: #fff3c4;
     font-size: 0.68rem;
     font-weight: 950;
     letter-spacing: 0.12em;
     line-height: 1;
     text-transform: uppercase;
-    box-shadow: 0 10px 24px rgba(22, 26, 33, 0.24);
-    backdrop-filter: blur(10px);
+    box-shadow: 0 6px 18px rgba(98, 54, 13, 0.24);
 }
 
 .travel-polaroid-copy {
@@ -1836,7 +2348,6 @@ onBeforeUnmount(() => {
 
 .polaroid-carousel.is-running .travel-polaroid:hover {
     z-index: 2;
-    transform: translateY(-5px);
     filter: saturate(1.05);
 }
 
@@ -2176,8 +2687,158 @@ onBeforeUnmount(() => {
     line-height: 1.7;
 }
 
+.fanart-section {
+    background:
+        radial-gradient(circle at 14% 18%, rgba(255, 115, 88, 0.22), transparent 22rem),
+        radial-gradient(circle at 84% 18%, rgba(73, 170, 202, 0.26), transparent 22rem),
+        linear-gradient(135deg, #17120f, #2c241d 42%, #f3eadf 42.1%, #fff9ef);
+}
+
+.fanart-header {
+    display: grid;
+    grid-template-columns: minmax(0, 0.82fr) minmax(18rem, 0.72fr);
+    gap: clamp(1.5rem, 5vw, 4rem);
+    align-items: end;
+    color: #fff7ed;
+}
+
+.fanart-header h2 {
+    font-size: clamp(4rem, 15vw, 13rem);
+    font-weight: 950;
+    line-height: 0.78;
+    text-transform: uppercase;
+}
+
+.fanart-header > p:last-child {
+    max-width: 34rem;
+    color: rgba(255, 247, 237, 0.72);
+    font-size: clamp(1rem, 1.7vw, 1.3rem);
+    line-height: 1.75;
+}
+
+.fanart-print-frame {
+    display: block;
+    width: 100%;
+    overflow: hidden;
+    border: 0;
+    background: #fffaf2;
+    padding: 0;
+    cursor: zoom-in;
+}
+
+.fanart-print-frame img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+.fanart-print-copy span {
+    display: block;
+    color: rgba(139, 93, 69, 0.72);
+    font-size: 0.74rem;
+    font-weight: 900;
+    letter-spacing: 0;
+}
+
+.fanart-showcase {
+    position: relative;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: clamp(0.9rem, 1.8vw, 1.35rem);
+    align-items: stretch;
+    max-width: 1180px;
+}
+
+.fanart-print {
+    display: grid;
+    grid-template-columns: minmax(150px, 0.92fr) minmax(0, 1fr);
+    gap: clamp(0.8rem, 1.6vw, 1.15rem);
+    align-items: stretch;
+    min-width: 0;
+    min-height: clamp(210px, 18vw, 280px);
+    border: 1px solid rgba(255, 247, 237, 0.18);
+    background:
+        linear-gradient(90deg, rgba(255, 247, 237, 0.98), rgba(255, 255, 255, 0.88)),
+        rgba(255, 255, 255, 0.76);
+    padding: clamp(0.7rem, 1.2vw, 0.95rem);
+    box-shadow: 0 1rem 2.7rem rgba(23, 18, 15, 0.18);
+    transform: rotate(calc(var(--fanart-tilt) * 0.55));
+    animation-delay: var(--fanart-delay, 0ms);
+}
+
+.fanart-print.is-featured {
+    background:
+        linear-gradient(90deg, rgba(255, 247, 237, 1), rgba(255, 255, 255, 0.9)),
+        rgba(255, 255, 255, 0.82);
+    box-shadow: 0 1.4rem 3.8rem rgba(23, 18, 15, 0.22);
+}
+
+.fanart-print-frame {
+    height: 100%;
+    min-height: 190px;
+    aspect-ratio: auto;
+}
+
+.fanart-print-copy {
+    display: flex;
+    flex-direction: column;
+    justify-content: end;
+    min-width: 0;
+    padding: 0.3rem 0.2rem 0.2rem 0;
+}
+
+.fanart-print-copy h3 {
+    max-width: 13ch;
+    margin-top: 0.45rem;
+    font-size: clamp(1.45rem, 2.4vw, 2.4rem);
+    font-weight: 950;
+    line-height: 0.94;
+}
+
+.fanart-print.is-featured .fanart-print-copy h3 {
+    font-size: clamp(1.45rem, 2.4vw, 2.4rem);
+}
+
+.fanart-print-copy p {
+    max-width: 34ch;
+    margin-top: 0.65rem;
+    color: rgba(23, 18, 15, 0.62);
+    font-size: clamp(0.92rem, 1.1vw, 1rem);
+    line-height: 1.6;
+}
+
+.fanart-print.is-featured .fanart-print-copy p {
+    font-size: clamp(0.92rem, 1.1vw, 1rem);
+    line-height: 1.6;
+}
+
+.fanart-shift-move,
+.fanart-shift-enter-active,
+.fanart-shift-leave-active {
+    transition:
+        opacity 760ms cubic-bezier(0.16, 1, 0.3, 1),
+        transform 760ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.fanart-shift-enter-from {
+    opacity: 0;
+    transform: translateY(1.25rem) rotate(0deg) scale(0.96);
+}
+
+.fanart-shift-leave-to {
+    opacity: 0;
+    transform: translateY(-1.25rem) rotate(0deg) scale(0.96);
+}
+
+.fanart-shift-leave-active {
+    position: absolute;
+    max-width: calc((100% - clamp(0.9rem, 1.8vw, 1.35rem)) / 2);
+}
+
 .rpg-card,
 .lucifer-card,
+.fanart-print,
 .lab-card,
 .mirror-card,
 .sweet-card {
@@ -2237,15 +2898,19 @@ onBeforeUnmount(() => {
         animation: toolDrift 3.4s ease-in-out calc(var(--reveal-delay, 0ms) + 700ms) infinite;
     }
 
-    .section-stage.is-visible .travel-polaroid.is-chromatic .travel-polaroid-visual {
+    .section-stage.is-visible .travel-polaroid.is-rare .travel-polaroid-visual {
         animation: chromaticPulse 4.4s ease-in-out calc(var(--reveal-delay, 0ms) + 700ms) infinite;
     }
 
-    .section-stage.is-visible .travel-polaroid.is-chromatic .travel-polaroid-visual::after {
+    .section-stage.is-visible .travel-polaroid.is-rare .travel-polaroid-visual img {
+        animation: rareImageFloat 3.6s ease-in-out infinite;
+    }
+
+    .section-stage.is-visible .travel-polaroid.is-rare .travel-polaroid-visual::after {
         animation: chromaticSweep 3.8s cubic-bezier(0.16, 1, 0.3, 1) calc(var(--reveal-delay, 0ms) + 500ms) infinite;
     }
 
-    .section-stage.is-visible :is(.sweet-card, .lab-card, .mirror-card) {
+    .section-stage.is-visible :is(.sweet-card, .lab-card, .mirror-card, .fanart-print) {
         animation: softBob 5.2s ease-in-out calc(var(--reveal-delay, 0ms) + 900ms) infinite;
     }
 
@@ -2298,12 +2963,6 @@ onBeforeUnmount(() => {
         margin-left: 0;
     }
 
-    .chromatic-overlay span {
-        right: 8%;
-        top: 6%;
-        font-size: 0.58rem;
-    }
-
     .dragon-header {
         gap: 1.2rem;
     }
@@ -2352,6 +3011,33 @@ onBeforeUnmount(() => {
     .lucifer-copy h3 {
         font-size: clamp(1.9rem, 13vw, 3.4rem);
     }
+
+    .fanart-header,
+    .fanart-showcase {
+        grid-template-columns: 1fr;
+    }
+
+    .fanart-showcase {
+        max-width: 440px;
+        margin-left: auto;
+        margin-right: auto;
+    }
+
+    .fanart-print {
+        grid-template-columns: 1fr;
+        min-height: 0;
+        transform: rotate(0deg);
+    }
+
+    .fanart-print-frame {
+        height: auto;
+        min-height: 0;
+        aspect-ratio: 1 / 1.12;
+    }
+
+    .fanart-print-copy p {
+        display: block;
+    }
 }
 
 @media (min-width: 1280px) {
@@ -2370,7 +3056,7 @@ onBeforeUnmount(() => {
 
 @media (min-width: 1024px) {
     .benandanti-spotlight {
-        grid-template-columns: minmax(0, 1.1fr) minmax(360px, 0.9fr);
+        grid-template-columns: minmax(0, 1fr) minmax(360px, 1.15fr);
     }
 
     .dragon-header {

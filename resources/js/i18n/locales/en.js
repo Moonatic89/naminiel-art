@@ -1,6 +1,8 @@
 import polaroids from './polaroids/en';
 import lucifer from './lucifer/en';
+import qrCards from './qrCards/en';
 import roleplay from './roleplay/en';
+import fanart from './fanart/en';
 
 export default {
     localeName: 'English',
@@ -137,17 +139,8 @@ export default {
                     ['Portrait', 'A steady pose, a look that stays.'],
                 ],
             },
-            fanart: {
-                kicker: '11 / Fan Art',
-                title: 'Fanart',
-                body: 'Tributes, icons, and recognizable scenes reimagined with a personal signature, for people who love a character and want to see them breathe differently.',
-                items: [
-                    ['Tribute', 'Illustrations faithful to the source’s spirit, shaped by a recognizable hand.'],
-                    ['Icon', 'Beloved characters reworked with an illustrative eye.'],
-                    ['Scene', 'A recognizable moment composed like a print.'],
-                    ['Energy', 'The right gesture, just before the image runs away.'],
-                ],
-            },
+            fanart,
         },
     },
+    qrCards,
 };

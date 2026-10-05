@@ -41,10 +41,8 @@
 </template>
 
 <script setup>
-const staticFa =
-  "https://hqbmfndntgzbgprrbrhm.supabase.co/storage/v1/object/public/nav/nav_goku.webp";
-const staticOg =
-  "https://hqbmfndntgzbgprrbrhm.supabase.co/storage/v1/object/public/nav/nav_venerdi.webp";
+const staticFa = "/media/home/hero/gok.webp";
+const staticOg = "/media/home/hero/ven.webp";
 </script>
 
 <style scoped>
